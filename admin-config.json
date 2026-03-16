@@ -1,0 +1,35 @@
+{
+  "tabs": [
+    {
+      "id": "display",
+      "label": "Display",
+      "fields": [
+        {
+          "key": "pagesPerPage",
+          "label": "Pages Per Page",
+          "component": "input",
+          "inputType": "number",
+          "min": 4,
+          "max": 100
+        },
+        {
+          "key": "showCategoryFilter",
+          "label": "Show Category Filter",
+          "component": "checkbox"
+        }
+      ]
+    },
+    {
+      "id": "localization",
+      "label": "Localization",
+      "fields": [
+        {
+          "key": "defaultLanguage",
+          "label": "Default Language",
+          "component": "input",
+          "inputType": "text"
+        }
+      ]
+    }
+  ]
+}

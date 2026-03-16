@@ -1,0 +1,17 @@
+{
+  "cms": {
+    "loading": "Loading…",
+    "notFound": "Page not found.",
+    "allCategories": "All",
+    "noPages": "No pages available.",
+    "readMore": "Read more",
+    "category": "Category"
+  },
+  "contactForm": {
+    "submit": "Send Message",
+    "defaultSuccess": "Thank you! We will get back to you soon.",
+    "notConfigured": "This contact form is not yet configured.",
+    "fieldRequired": "{label} is required.",
+    "rateLimited": "Too many requests. Please try again later."
+  }
+}

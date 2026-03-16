@@ -1,0 +1,17 @@
+{
+  "pagesPerPage": {
+    "type": "number",
+    "default": 12,
+    "description": "Number of pages to show per page in the page index"
+  },
+  "showCategoryFilter": {
+    "type": "boolean",
+    "default": true,
+    "description": "Show category filter tabs on the page index"
+  },
+  "defaultLanguage": {
+    "type": "string",
+    "default": "en",
+    "description": "Default language filter for the page index"
+  }
+}
