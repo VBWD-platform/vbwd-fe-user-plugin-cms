@@ -17,10 +17,13 @@ Renders CMS pages, layouts, and widgets fetched from the backend CMS API.
 - `CmsLayoutRenderer.vue` — renders a full layout with widget areas
 - `CmsWidgetRenderer.vue` — dispatches to html/menu/slideshow/vue-component widgets
 
-## Backend counterpart
+---
 
-`vbwd-backend/plugins/cms/` — `/api/v1/cms/*`
+## Related
 
-## Admin counterpart
+| | Repository |
+|-|------------|
+| 🖥 Backend | [vbwd-plugin-cms](https://github.com/VBWD-platform/vbwd-plugin-cms) |
+| 🛠 Frontend (admin) | [vbwd-fe-admin-plugin-cms](https://github.com/VBWD-platform/vbwd-fe-admin-plugin-cms) |
 
-`vbwd-fe-admin/plugins/cms-admin/`
+**Core:** [vbwd-fe-user](https://github.com/VBWD-platform/vbwd-fe-user) · [vbwd-fe-core](https://github.com/VBWD-platform/vbwd-fe-core)
