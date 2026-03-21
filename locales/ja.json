@@ -1,0 +1,17 @@
+{
+  "cms": {
+    "loading": "読み込み中…",
+    "notFound": "ページが見つかりません。",
+    "allCategories": "すべて",
+    "noPages": "ページがありません。",
+    "readMore": "続きを読む",
+    "category": "カテゴリ"
+  },
+  "contactForm": {
+    "submit": "メッセージを送信",
+    "defaultSuccess": "ありがとうございます。折り返しご連絡いたします。",
+    "notConfigured": "このお問い合わせフォームはまだ設定されていません。",
+    "fieldRequired": "{label}は必須です。",
+    "rateLimited": "リクエストが多すぎます。しばらくしてから再度お試しください。"
+  }
+}

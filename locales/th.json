@@ -1,0 +1,17 @@
+{
+  "cms": {
+    "loading": "กำลังโหลด…",
+    "notFound": "ไม่พบหน้านี้",
+    "allCategories": "ทั้งหมด",
+    "noPages": "ไม่มีหน้าที่พร้อมแสดง",
+    "readMore": "อ่านเพิ่มเติม",
+    "category": "หมวดหมู่"
+  },
+  "contactForm": {
+    "submit": "ส่งข้อความ",
+    "defaultSuccess": "ขอบคุณ! เราจะติดต่อกลับโดยเร็ว",
+    "notConfigured": "แบบฟอร์มติดต่อนี้ยังไม่ได้ตั้งค่า",
+    "fieldRequired": "กรุณากรอก{label}",
+    "rateLimited": "คำขอมากเกินไป กรุณาลองใหม่ภายหลัง"
+  }
+}

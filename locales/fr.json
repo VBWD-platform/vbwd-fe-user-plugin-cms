@@ -1,0 +1,17 @@
+{
+  "cms": {
+    "loading": "Chargement…",
+    "notFound": "Page introuvable.",
+    "allCategories": "Toutes",
+    "noPages": "Aucune page disponible.",
+    "readMore": "Lire la suite",
+    "category": "Catégorie"
+  },
+  "contactForm": {
+    "submit": "Envoyer le message",
+    "defaultSuccess": "Merci ! Nous vous répondrons dans les plus brefs délais.",
+    "notConfigured": "Ce formulaire de contact n'est pas encore configuré.",
+    "fieldRequired": "{label} est requis.",
+    "rateLimited": "Trop de demandes. Veuillez réessayer plus tard."
+  }
+}

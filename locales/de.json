@@ -1,0 +1,17 @@
+{
+  "cms": {
+    "loading": "Wird geladen…",
+    "notFound": "Seite nicht gefunden.",
+    "allCategories": "Alle",
+    "noPages": "Keine Seiten verfügbar.",
+    "readMore": "Weiterlesen",
+    "category": "Kategorie"
+  },
+  "contactForm": {
+    "submit": "Nachricht senden",
+    "defaultSuccess": "Vielen Dank! Wir melden uns in Kürze bei Ihnen.",
+    "notConfigured": "Dieses Kontaktformular ist noch nicht konfiguriert.",
+    "fieldRequired": "{label} ist erforderlich.",
+    "rateLimited": "Zu viele Anfragen. Bitte versuchen Sie es später erneut."
+  }
+}

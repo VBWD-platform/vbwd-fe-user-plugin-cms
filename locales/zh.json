@@ -1,0 +1,17 @@
+{
+  "cms": {
+    "loading": "加载中…",
+    "notFound": "页面未找到。",
+    "allCategories": "全部",
+    "noPages": "暂无页面。",
+    "readMore": "阅读更多",
+    "category": "分类"
+  },
+  "contactForm": {
+    "submit": "发送消息",
+    "defaultSuccess": "谢谢！我们会尽快与您联系。",
+    "notConfigured": "此联系表单尚未配置。",
+    "fieldRequired": "{label}为必填项。",
+    "rateLimited": "请求过多，请稍后再试。"
+  }
+}
