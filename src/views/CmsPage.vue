@@ -19,6 +19,7 @@
       <CmsLayoutRenderer
         :layout="store.currentLayout"
         :content-html="renderedHtml"
+        :content-blocks="pageContentBlocks"
       />
     </template>
 
@@ -52,6 +53,13 @@ const route = useRoute();
 const store = useCmsStore();
 
 const effectiveSlug = computed(() => props.slug ?? (route.params.slug as string));
+
+// Multi-content blocks from page data (keyed by area name)
+const pageContentBlocks = computed(() => {
+  const page = store.currentPage as Record<string, unknown> | null;
+  if (!page) return {};
+  return (page.content_blocks as Record<string, { content_html?: string; source_css?: string }>) || {};
+});
 
 // ── TipTap JSON → HTML renderer (no external dependency) ─────────────────────
 
@@ -192,12 +200,14 @@ watch(() => store.currentStyleCss, (css) => {
   applyPageStyle(css ?? null);
 });
 
+const previewToken = computed(() => route.query.preview_token as string | undefined);
+
 watch(effectiveSlug, (slug) => {
-  store.fetchPage(slug);
+  store.fetchPage(slug, previewToken.value);
 });
 
 onMounted(() => {
-  store.fetchPage(effectiveSlug.value);
+  store.fetchPage(effectiveSlug.value, previewToken.value);
 });
 
 onUnmounted(() => {

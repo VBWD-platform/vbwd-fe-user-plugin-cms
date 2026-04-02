@@ -7,17 +7,18 @@
       v-for="area in layout.areas"
       :key="area.name"
     >
-      <!-- Content area: render page TipTap content -->
+      <!-- Content area: render named content block or fallback to page content -->
       <main
         v-if="area.type === 'content'"
         class="cms-area cms-area--content"
+        :class="`cms-area--${area.name}`"
       >
         <div class="container">
           <!-- eslint-disable-next-line vue/no-v-html -->
           <div
             ref="contentAreaEl"
             class="cms-page__body"
-            v-html="contentHtml"
+            v-html="contentBlockHtml(area.name)"
           />
         </div>
       </main>
@@ -43,7 +44,20 @@ import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 const props = defineProps<{
   layout: CmsLayout;
   contentHtml: string;
+  contentBlocks?: Record<string, { content_html?: string; source_css?: string }>;
 }>();
+
+/**
+ * Get HTML for a named content area.
+ * 1. Check named content blocks (multi-block pages)
+ * 2. Fall back to page's main contentHtml (single-block backward compat)
+ */
+function contentBlockHtml(areaName: string): string {
+  const block = props.contentBlocks?.[areaName];
+  if (block?.content_html) return block.content_html;
+  // Fallback: if this is the only content area or named "content", use main contentHtml
+  return props.contentHtml || '';
+}
 
 const contentAreaEl = ref<HTMLElement | HTMLElement[] | null>(null);
 

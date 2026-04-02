@@ -71,6 +71,10 @@
           class="cms-menu__link"
           @click="childrenOf(item.id).length ? toggleSub($event, item.id) : undefined"
         >
+          <span
+            v-if="item.icon"
+            class="cms-menu__icon"
+          >{{ item.icon }}</span>
           {{ item.label }}
           <span
             v-if="childrenOf(item.id).length"
@@ -93,10 +97,24 @@
               :target="child.target || '_self'"
               class="cms-menu__link"
             >
+              <span
+                v-if="child.icon"
+                class="cms-menu__icon"
+              >{{ child.icon }}</span>
               {{ child.label }}
             </a>
           </li>
         </ul>
+      </li>
+      <!-- Cart icon (injected by shop plugin if show_cart is enabled) -->
+      <li
+        v-if="showCart"
+        class="cms-menu__item cms-menu__item--cart"
+      >
+        <component
+          :is="cartBadgeComponent"
+          v-if="cartBadgeComponent"
+        />
       </li>
     </ul>
   </nav>
@@ -157,6 +175,17 @@ import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import type { Component } from 'vue';
 import type { CmsWidgetData, CmsMenuItemData } from '../stores/useCmsStore';
 import { resolveCmsVueComponent } from '../registry/vueComponentRegistry';
+
+// Cart badge support for menu widgets with show_cart config
+const showCart = computed(() => {
+  if (props.widget.widget_type !== 'menu') return false;
+  return (props.widget.config as Record<string, unknown>)?.show_cart === true;
+});
+
+const cartBadgeComponent = computed<Component | undefined>(() => {
+  if (!showCart.value) return undefined;
+  return resolveCmsVueComponent('CartBadge');
+});
 
 const resolvedVueComponent = computed<Component | undefined>(() => {
   if (props.widget.widget_type !== 'vue-component') return undefined;
@@ -273,8 +302,10 @@ function nextSlide() {
 .cms-menu__sub { display: none; list-style: none; margin: 0; padding: 0.25rem 0; }
 .cms-menu__sub--open { display: block; }
 .cms-menu__sub .cms-menu__link { padding: 0.45rem 1rem; font-size: 0.9rem; }
+.cms-menu__icon { margin-right: 0.35rem; }
 .cms-menu__arrow { font-size: 0.7rem; opacity: 0.55; transition: transform 0.2s; display: inline-block; }
 .cms-menu__arrow--open { transform: rotate(180deg); }
+.cms-menu__item--cart { display: flex; align-items: center; margin-left: auto; }
 
 /* Burger spans */
 .cms-burger { background: transparent; border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: inherit; display: none; flex-direction: column; justify-content: center; gap: 5px; width: 40px; height: 40px; flex-shrink: 0; }

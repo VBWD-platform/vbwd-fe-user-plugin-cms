@@ -125,7 +125,7 @@ export const useCmsStore = defineStore('cms-user', {
       }
     },
 
-    async fetchPage(slug: string) {
+    async fetchPage(slug: string, previewToken?: string) {
       this.loading = true;
       this.error = null;
       this.currentPage = null;
@@ -133,8 +133,9 @@ export const useCmsStore = defineStore('cms-user', {
       this.currentStyleCss = null;
       try {
         // Fetch page and categories in parallel so both are ready before layout renders
+        const params = previewToken ? `?preview_token=${previewToken}` : '';
         const [res] = await Promise.all([
-          api.get<any>(`/cms/pages/${slug}`),
+          api.get<any>(`/cms/pages/${slug}${params}`),
           this.categories.length ? Promise.resolve() : this.fetchCategories(),
         ]);
         this.currentPage = res;
