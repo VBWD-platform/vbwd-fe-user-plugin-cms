@@ -89,6 +89,7 @@ interface CmsStoreState {
   currentStyleCss: string | null;
   loading: boolean;
   error: string | null;
+  accessDenied: boolean;
 }
 
 export const useCmsStore = defineStore('cms-user', {
@@ -100,6 +101,7 @@ export const useCmsStore = defineStore('cms-user', {
     currentStyleCss: null,
     loading: false,
     error: null,
+    accessDenied: false,
   }),
 
   actions: {
@@ -128,6 +130,7 @@ export const useCmsStore = defineStore('cms-user', {
     async fetchPage(slug: string, previewToken?: string) {
       this.loading = true;
       this.error = null;
+      this.accessDenied = false;
       this.currentPage = null;
       this.currentLayout = null;
       this.currentStyleCss = null;
@@ -147,7 +150,13 @@ export const useCmsStore = defineStore('cms-user', {
           styleId ? this.fetchStyleCss(styleId) : Promise.resolve(),
         ]);
       } catch (e: any) {
-        this.error = e?.message ?? 'Page not found';
+        const status = e?.response?.status ?? e?.status;
+        if (status === 403) {
+          this.accessDenied = true;
+          this.error = 'Access denied';
+        } else {
+          this.error = e?.message ?? 'Page not found';
+        }
       } finally {
         this.loading = false;
       }

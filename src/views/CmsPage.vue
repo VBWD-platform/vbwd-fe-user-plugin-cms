@@ -8,6 +8,21 @@
     </div>
 
     <div
+      v-else-if="store.accessDenied"
+      class="cms-page__access-denied"
+    >
+      <h2>{{ isAuthenticated ? $t('cms.accessDenied', 'Access Denied') : $t('cms.loginRequired', 'Login Required') }}</h2>
+      <p>{{ isAuthenticated ? $t('cms.upgradePlan', 'Upgrade your plan to access this content.') : $t('cms.loginToView', 'Please log in to view this page.') }}</p>
+      <router-link
+        v-if="!isAuthenticated"
+        to="/login"
+        class="cms-page__login-link"
+      >
+        {{ $t('common.login', 'Log In') }}
+      </router-link>
+    </div>
+
+    <div
       v-else-if="store.error || !store.currentPage"
       class="cms-page__not-found"
     >
@@ -20,6 +35,7 @@
         :layout="store.currentLayout"
         :content-html="renderedHtml"
         :content-blocks="pageContentBlocks"
+        :page-assignments="pageWidgetAssignments"
       />
     </template>
 
@@ -45,7 +61,10 @@
 import { computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCmsStore } from '../stores/useCmsStore';
+import { isAuthenticated as checkAuth } from '@/api';
 import CmsLayoutRenderer from '../components/CmsLayoutRenderer.vue';
+
+const isAuthenticated = checkAuth();
 
 const props = defineProps<{ slug?: string }>();
 
@@ -59,6 +78,13 @@ const pageContentBlocks = computed(() => {
   const page = store.currentPage as Record<string, unknown> | null;
   if (!page) return {};
   return (page.content_blocks as Record<string, { content_html?: string; source_css?: string }>) || {};
+});
+
+// Page-level widget assignments (override layout widgets for same area)
+const pageWidgetAssignments = computed(() => {
+  const page = store.currentPage as Record<string, unknown> | null;
+  if (!page) return [];
+  return (page.page_assignments as Array<Record<string, unknown>>) || [];
 });
 
 // ── TipTap JSON → HTML renderer (no external dependency) ─────────────────────

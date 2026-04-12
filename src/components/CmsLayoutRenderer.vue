@@ -41,10 +41,17 @@ import { ref, watch, nextTick, onMounted } from 'vue';
 import type { CmsLayout, CmsWidgetData } from '../stores/useCmsStore';
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 
+interface WidgetAssignment {
+  area_name: string;
+  widget?: CmsWidgetData;
+  [key: string]: unknown;
+}
+
 const props = defineProps<{
   layout: CmsLayout;
   contentHtml: string;
   contentBlocks?: Record<string, { content_html?: string; source_css?: string }>;
+  pageAssignments?: WidgetAssignment[];
 }>();
 
 /**
@@ -91,8 +98,11 @@ watch(() => props.contentHtml, async () => {
 });
 
 function widgetFor(areaName: string): CmsWidgetData | undefined {
-  const assignment = props.layout.assignments?.find(a => a.area_name === areaName);
-  return assignment?.widget as CmsWidgetData | undefined;
+  // Page-level assignments override layout-level for the same area
+  const pageAssignment = props.pageAssignments?.find(a => a.area_name === areaName);
+  if (pageAssignment?.widget) return pageAssignment.widget as CmsWidgetData;
+  const layoutAssignment = props.layout.assignments?.find(a => a.area_name === areaName);
+  return layoutAssignment?.widget as CmsWidgetData | undefined;
 }
 </script>
 
