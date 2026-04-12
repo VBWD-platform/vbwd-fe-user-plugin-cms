@@ -83,8 +83,10 @@ const pageContentBlocks = computed(() => {
 // Page-level widget assignments (override layout widgets for same area)
 const pageWidgetAssignments = computed(() => {
   const page = store.currentPage as Record<string, unknown> | null;
-  if (!page) return [];
-  return (page.page_assignments as Array<Record<string, unknown>>) || [];
+  if (!page) return undefined;
+  const assignments = page.page_assignments as unknown[] | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return Array.isArray(assignments) && assignments.length > 0 ? assignments as any : undefined;
 });
 
 // ── TipTap JSON → HTML renderer (no external dependency) ─────────────────────
