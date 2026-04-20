@@ -142,9 +142,13 @@ export const useCmsStore = defineStore('cms-user', {
           this.categories.length ? Promise.resolve() : this.fetchCategories(),
         ]);
         this.currentPage = res;
-        // Eagerly fetch layout and style when present
+        // Eagerly fetch layout and style when present.
+        // Prefer `resolved_style_id` (sprint 26) so pages without an
+        // explicit `style_id` pick up the admin-designated default style.
+        // Falls back to legacy `style_id` for older backend responses.
         const layoutId = (res as any).layout_id;
-        const styleId = (res as any).style_id;
+        const styleId =
+          (res as any).resolved_style_id ?? (res as any).style_id;
         await Promise.all([
           layoutId ? this.fetchLayout(layoutId) : Promise.resolve(),
           styleId ? this.fetchStyleCss(styleId) : Promise.resolve(),
