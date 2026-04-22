@@ -110,7 +110,9 @@ function widgetFor(areaName: string): CmsWidgetData | undefined {
 .cms-layout { width: 100%; }
 .cms-area { width: 100%; }
 .cms-area--content { padding: 3rem 0; }
-.container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+/* Theme styles set --container-max (1100px / 1200px / 100%). Use the var
+ * so themes can widen or narrow; fall back to 1200px if no theme active. */
+.container { max-width: var(--container-max, 1200px); margin: 0 auto; padding: 0 1.5rem; }
 .cms-page__body :deep(img) { max-width: 100%; height: auto; }
 .cms-page__body :deep(pre) { background: var(--color-surface, #f5f5f5); padding: 1rem; border-radius: 4px; overflow-x: auto; }
 .cms-page__body :deep(blockquote) { border-left: 4px solid var(--color-border, #ddd); margin: 0; padding-left: 1rem; opacity: 0.8; }
