@@ -195,9 +195,9 @@ test('audit every theme × 4 pages', async ({ browser }) => {
   }
   fs.writeFileSync(path.join(OUT, 'report.md'), lines.join(''));
 
-  console.log(`\n[AUDIT] ${fails.length} contrast failures across ${styles.length} themes × ${TARGETS.length} pages`);
-  console.log(`[AUDIT] Report: ${path.join(OUT, 'report.md')}`);
-  console.log(`[AUDIT] Screenshots: ${OUT}/<slug>/`);
+  process.stdout.write(`\n[AUDIT] ${fails.length} contrast failures across ${styles.length} themes × ${TARGETS.length} pages\n`);
+  process.stdout.write(`[AUDIT] Report: ${path.join(OUT, 'report.md')}\n`);
+  process.stdout.write(`[AUDIT] Screenshots: ${OUT}/<slug>/\n`);
 
   // Soft expectation so CI can surface the report without abort-on-first
   expect.soft(fails.length, `see ${path.join(OUT, 'report.md')}`).toBe(0);

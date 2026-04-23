@@ -28,7 +28,12 @@
       role="alert"
     >
       <div class="cms-page__not-found-inner">
-        <div class="cms-page__not-found-code" aria-hidden="true">404</div>
+        <div
+          class="cms-page__not-found-code"
+          aria-hidden="true"
+        >
+          404
+        </div>
         <h1 class="cms-page__not-found-title">
           {{ $t('cms.notFoundTitle', 'Page not found') }}
         </h1>
@@ -36,10 +41,17 @@
           {{ $t('cms.notFoundMessage', "The page you’re looking for doesn’t exist, moved, or is temporarily unavailable.") }}
         </p>
         <div class="cms-page__not-found-ctas">
-          <router-link to="/" class="btn btn--accent">
+          <router-link
+            to="/"
+            class="btn btn--accent"
+          >
             {{ $t('cms.notFoundHome', 'Back to home') }}
           </router-link>
-          <button type="button" class="btn" @click="$router.back()">
+          <button
+            type="button"
+            class="btn"
+            @click="$router.back()"
+          >
             {{ $t('cms.notFoundBack', 'Go back') }}
           </button>
         </div>
