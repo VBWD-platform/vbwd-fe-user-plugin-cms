@@ -326,9 +326,12 @@ function nextSlide() {
 
 /* ── Mobile: burger drawer ────────────────────────────────── */
 @media (max-width: 768px) {
-  .cms-burger { display: flex; }
-  .cms-menu { display: flex; flex-direction: column; align-items: stretch; position: fixed; top: 0; right: -100%; width: min(300px, 85vw); height: 100dvh; background: var(--color-bg, #fff); padding: 4rem 0 2rem; overflow-y: auto; z-index: 300; transition: right 0.28s ease; box-shadow: -4px 0 20px rgba(0,0,0,0.15); }
-  .cms-menu--open { right: 0; }
+  /* position:relative + z-index lifts the burger above the drawer (300)
+   * and the overlay (250) so its morph-into-X animation stays visible in
+   * the same header slot once the drawer slides in. */
+  .cms-burger { display: flex; position: relative; z-index: 400; }
+  .cms-menu { display: flex; flex-direction: column; align-items: stretch; position: fixed; top: 0; left: -100%; width: min(300px, 85vw); height: 100dvh; background: var(--color-bg, #fff); padding: 4rem 0 2rem; overflow-y: auto; z-index: 300; transition: left 0.28s ease; box-shadow: 4px 0 20px rgba(0,0,0,0.15); }
+  .cms-menu--open { left: 0; }
   .cms-menu__item { position: static; border-bottom: 1px solid var(--color-border, #e5e7eb); }
   .cms-menu__link { padding: 0.9rem 1.5rem; font-size: 1rem; justify-content: space-between; white-space: normal; }
   .cms-menu__sub { position: static; box-shadow: none; border: none; border-radius: 0; max-height: 0; overflow: hidden; display: block; transition: max-height 0.25s ease; }
