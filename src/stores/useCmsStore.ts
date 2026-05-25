@@ -81,6 +81,15 @@ export interface CmsLayout {
   assignments: CmsWidgetAssignment[];
 }
 
+interface CachedCmsPage {
+  page: CmsPageItem | null;
+  layout: CmsLayout | null;
+  css: string | null;
+}
+
+// Module-level dedupe of in-flight prefetches (non-reactive on purpose).
+const prefetchInFlight = new Set<string>();
+
 interface CmsStoreState {
   categories: CmsCategory[];
   pageList: PaginatedPages | null;
@@ -90,6 +99,10 @@ interface CmsStoreState {
   loading: boolean;
   error: string | null;
   accessDenied: boolean;
+  // Prefetch caches — single source of truth shared by fetchPage + prefetchPage.
+  pageCache: Record<string, CachedCmsPage>;
+  layoutCache: Record<string, CmsLayout>;
+  styleCssCache: Record<string, string>;
 }
 
 export const useCmsStore = defineStore('cms-user', {
@@ -102,6 +115,9 @@ export const useCmsStore = defineStore('cms-user', {
     loading: false,
     error: null,
     accessDenied: false,
+    pageCache: {},
+    layoutCache: {},
+    styleCssCache: {},
   }),
 
   actions: {
@@ -128,6 +144,19 @@ export const useCmsStore = defineStore('cms-user', {
     },
 
     async fetchPage(slug: string, previewToken?: string) {
+      // Cache-first (never for preview drafts): instant, no spinner, no network.
+      const cached = previewToken ? undefined : this.pageCache[slug];
+      if (cached && cached.page) {
+        this.loading = false;
+        this.error = null;
+        this.accessDenied = false;
+        this.currentPage = cached.page;
+        this.currentLayout = cached.layout;
+        this.currentStyleCss = cached.css;
+        if (!this.categories.length) this.fetchCategories();
+        return;
+      }
+
       this.loading = true;
       this.error = null;
       this.accessDenied = false;
@@ -149,10 +178,16 @@ export const useCmsStore = defineStore('cms-user', {
         const layoutId = (res as any).layout_id;
         const styleId =
           (res as any).resolved_style_id ?? (res as any).style_id;
-        await Promise.all([
-          layoutId ? this.fetchLayout(layoutId) : Promise.resolve(),
-          styleId ? this.fetchStyleCss(styleId) : Promise.resolve(),
+        const [layout, css] = await Promise.all([
+          layoutId ? this._fetchLayoutRaw(layoutId) : Promise.resolve(null),
+          styleId ? this._fetchStyleCssRaw(styleId) : Promise.resolve(null),
         ]);
+        this.currentLayout = layout;
+        this.currentStyleCss = css;
+        // Warm the cache so a return visit / prefetch hit is instant.
+        if (!previewToken) {
+          this.pageCache[slug] = { page: res, layout, css };
+        }
       } catch (e: any) {
         const status = e?.response?.status ?? e?.status;
         if (status === 403) {
@@ -166,22 +201,62 @@ export const useCmsStore = defineStore('cms-user', {
       }
     },
 
+    /**
+     * Warm the cache for a CMS page (page + layout + style CSS) WITHOUT touching
+     * the page currently on screen. Best-effort and deduplicated: an
+     * already-cached or in-flight slug is a no-op; failures are cached
+     * negatively so a dead/gated/non-CMS slug is not retried.
+     */
+    async prefetchPage(slug: string) {
+      if (!slug || slug in this.pageCache || prefetchInFlight.has(slug)) return;
+      prefetchInFlight.add(slug);
+      try {
+        const page = await api.get<any>(`/cms/pages/${slug}`);
+        const layoutId = (page as any).layout_id;
+        const styleId = (page as any).resolved_style_id ?? (page as any).style_id;
+        const [layout, css] = await Promise.all([
+          layoutId ? this._fetchLayoutRaw(layoutId) : Promise.resolve(null),
+          styleId ? this._fetchStyleCssRaw(styleId) : Promise.resolve(null),
+        ]);
+        this.pageCache[slug] = { page, layout, css };
+      } catch {
+        this.pageCache[slug] = { page: null, layout: null, css: null };
+      } finally {
+        prefetchInFlight.delete(slug);
+      }
+    },
+
     async fetchLayout(id: string) {
+      this.currentLayout = await this._fetchLayoutRaw(id);
+    },
+
+    async _fetchLayoutRaw(id: string): Promise<CmsLayout | null> {
+      if (this.layoutCache[id]) return this.layoutCache[id];
       try {
         const res = await api.get<any>(`/cms/layouts/${id}`);
-        this.currentLayout = res;
+        this.layoutCache[id] = res;
+        return res;
       } catch (e) {
         console.warn('[CMS] fetchLayout failed', e);
+        return null;
       }
     },
 
     async fetchStyleCss(id: string) {
+      this.currentStyleCss = await this._fetchStyleCssRaw(id);
+    },
+
+    async _fetchStyleCssRaw(id: string): Promise<string | null> {
+      if (this.styleCssCache[id] != null) return this.styleCssCache[id];
       try {
         const resp = await fetch(`/api/v1/cms/styles/${id}/css`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        this.currentStyleCss = await resp.text();
+        const css = await resp.text();
+        this.styleCssCache[id] = css;
+        return css;
       } catch (e) {
         console.warn('[CMS] fetchStyleCss failed', e);
+        return null;
       }
     },
   },

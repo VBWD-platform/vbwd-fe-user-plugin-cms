@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="cmsLayoutEl"
     class="cms-layout"
     :class="`cms-layout--${layout.slug}`"
   >
@@ -40,6 +41,14 @@
 import { ref, watch, nextTick, onMounted } from 'vue';
 import type { CmsLayout, CmsWidgetData } from '../stores/useCmsStore';
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
+import { useCmsSpaLinks } from '../composables/useCmsSpaLinks';
+import { useCmsLinkPrefetch } from '../composables/useCmsLinkPrefetch';
+
+// Root of the whole layout (widgets + main content). Local CMS links anywhere
+// inside become instant: SPA-navigated on click, prefetched when visible.
+const cmsLayoutEl = ref<HTMLElement | null>(null);
+useCmsSpaLinks(cmsLayoutEl);
+useCmsLinkPrefetch(cmsLayoutEl);
 
 interface WidgetAssignment {
   area_name: string;
