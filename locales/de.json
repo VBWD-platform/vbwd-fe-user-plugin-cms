@@ -5,7 +5,15 @@
     "allCategories": "Alle",
     "noPages": "Keine Seiten verfügbar.",
     "readMore": "Weiterlesen",
-    "category": "Kategorie"
+    "category": "Kategorie",
+    "notFoundTitle": "Seite nicht gefunden",
+    "notFoundMessage": "Die gesuchte Seite existiert nicht.",
+    "notFoundBack": "Zurück",
+    "notFoundHome": "Zur Startseite",
+    "accessDenied": "Zugriff verweigert",
+    "loginRequired": "Anmeldung erforderlich",
+    "loginToView": "Bitte melden Sie sich an, um diese Seite anzuzeigen.",
+    "upgradePlan": "Upgraden Sie Ihren Tarif, um auf diese Seite zuzugreifen."
   },
   "contactForm": {
     "submit": "Nachricht senden",

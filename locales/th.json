@@ -5,7 +5,15 @@
     "allCategories": "ทั้งหมด",
     "noPages": "ไม่มีหน้าที่พร้อมแสดง",
     "readMore": "อ่านเพิ่มเติม",
-    "category": "หมวดหมู่"
+    "category": "หมวดหมู่",
+    "notFoundTitle": "ไม่พบหน้า",
+    "notFoundMessage": "ไม่มีหน้าที่คุณกำลังค้นหา",
+    "notFoundBack": "ย้อนกลับ",
+    "notFoundHome": "ไปยังหน้าหลัก",
+    "accessDenied": "ปฏิเสธการเข้าถึง",
+    "loginRequired": "ต้องเข้าสู่ระบบ",
+    "loginToView": "เข้าสู่ระบบเพื่อดูหน้านี้",
+    "upgradePlan": "อัปเกรดแผนของคุณเพื่อเข้าถึงหน้านี้"
   },
   "contactForm": {
     "submit": "ส่งข้อความ",

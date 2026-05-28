@@ -5,7 +5,15 @@
     "allCategories": "Todas",
     "noPages": "No hay páginas disponibles.",
     "readMore": "Leer más",
-    "category": "Categoría"
+    "category": "Categoría",
+    "notFoundTitle": "Página no encontrada",
+    "notFoundMessage": "La página que busca no existe.",
+    "notFoundBack": "Volver",
+    "notFoundHome": "Ir al inicio",
+    "accessDenied": "Acceso denegado",
+    "loginRequired": "Inicio de sesión requerido",
+    "loginToView": "Inicie sesión para ver esta página.",
+    "upgradePlan": "Actualice su plan para acceder a esta página."
   },
   "contactForm": {
     "submit": "Enviar mensaje",

@@ -5,7 +5,15 @@
     "allCategories": "すべて",
     "noPages": "ページがありません。",
     "readMore": "続きを読む",
-    "category": "カテゴリ"
+    "category": "カテゴリ",
+    "notFoundTitle": "ページが見つかりません",
+    "notFoundMessage": "お探しのページは存在しません。",
+    "notFoundBack": "戻る",
+    "notFoundHome": "ホームへ",
+    "accessDenied": "アクセスが拒否されました",
+    "loginRequired": "ログインが必要です",
+    "loginToView": "このページを表示するにはログインしてください。",
+    "upgradePlan": "このページにアクセスするにはプランをアップグレードしてください。"
   },
   "contactForm": {
     "submit": "メッセージを送信",

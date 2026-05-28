@@ -5,7 +5,15 @@
     "allCategories": "Все",
     "noPages": "Нет доступных страниц.",
     "readMore": "Читать далее",
-    "category": "Категория"
+    "category": "Категория",
+    "notFoundTitle": "Страница не найдена",
+    "notFoundMessage": "Запрашиваемая страница не существует.",
+    "notFoundBack": "Назад",
+    "notFoundHome": "На главную",
+    "accessDenied": "Доступ запрещён",
+    "loginRequired": "Требуется вход",
+    "loginToView": "Войдите, чтобы просмотреть эту страницу.",
+    "upgradePlan": "Обновите ваш тариф для доступа к этой странице."
   },
   "contactForm": {
     "submit": "Отправить сообщение",

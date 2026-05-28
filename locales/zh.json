@@ -5,7 +5,15 @@
     "allCategories": "全部",
     "noPages": "暂无页面。",
     "readMore": "阅读更多",
-    "category": "分类"
+    "category": "分类",
+    "notFoundTitle": "找不到页面",
+    "notFoundMessage": "您要查找的页面不存在。",
+    "notFoundBack": "返回",
+    "notFoundHome": "返回首页",
+    "accessDenied": "访问被拒绝",
+    "loginRequired": "需要登录",
+    "loginToView": "请登录以查看此页面。",
+    "upgradePlan": "请升级您的方案以访问此页面。"
   },
   "contactForm": {
     "submit": "发送消息",
