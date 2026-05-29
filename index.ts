@@ -1,5 +1,7 @@
 import type { IPlugin, IPlatformSDK } from 'vbwd-view-component';
 import { registerCmsVueComponent } from './src/registry/vueComponentRegistry';
+import { createCmsMiddlewareRoutingGuard } from './src/routing/middlewareRoutingGuard';
+import { api as hostApi } from '@/api';
 import en from './locales/en.json';
 import de from './locales/de.json';
 import es from './locales/es.json';
@@ -49,6 +51,15 @@ export const cmsPlugin: IPlugin = {
     sdk.addTranslations('ru', ru);
     sdk.addTranslations('th', th);
     sdk.addTranslations('zh', zh);
+
+    // Register a router beforeEach guard that evaluates middleware-layer
+    // CMS routing rules client-side. Without this, rules saved via the
+    // admin (path_prefix, default, language, cookie) would never fire
+    // for SPA navigations — nginx serves index.html for any non-/api/
+    // path, so the backend middleware never sees them. Scoped to the
+    // home + CMS catch-all routes inside the guard itself, so it cannot
+    // hijack /login, /dashboard, etc.
+    sdk.addRouterGuard(createCmsMiddlewareRoutingGuard(hostApi));
   },
 
   activate() { this._active = true; },
