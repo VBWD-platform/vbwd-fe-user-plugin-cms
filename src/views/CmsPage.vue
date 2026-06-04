@@ -62,7 +62,7 @@
     <template v-else-if="store.currentLayout">
       <CmsLayoutRenderer
         :layout="store.currentLayout"
-        :content-html="renderedHtml"
+        :content-html="bodyHtml"
         :content-blocks="pageContentBlocks"
         :page-assignments="pageWidgetAssignments"
       />
@@ -74,7 +74,7 @@
       class="cms-page__content"
     >
       <h1 class="cms-page__title">
-        {{ store.currentPage.name }}
+        {{ pageTitle }}
       </h1>
       <!-- eslint-disable vue/no-v-html -->
       <div
@@ -92,6 +92,7 @@ import { useRoute } from 'vue-router';
 import { useCmsStore } from '../stores/useCmsStore';
 import { isAuthenticated as checkAuth } from '@/api';
 import CmsLayoutRenderer from '../components/CmsLayoutRenderer.vue';
+import { injectSeoMeta } from '../composables/useSeoHandoff';
 
 const isAuthenticated = checkAuth();
 
@@ -101,6 +102,13 @@ const route = useRoute();
 const store = useCmsStore();
 
 const effectiveSlug = computed(() => props.slug ?? (route.params.slug as string));
+
+// Unified cms_post exposes `title`; legacy cms_page exposed `name`. Prefer
+// `title` and fall back to `name` so both shapes render the same heading.
+const pageTitle = computed(() => {
+  const page = store.currentPage as Record<string, unknown> | null;
+  return (page?.title as string | undefined) ?? (page?.name as string | undefined) ?? '';
+});
 
 // Multi-content blocks from page data (keyed by area name)
 const pageContentBlocks = computed(() => {
@@ -191,52 +199,27 @@ const renderedHtml = computed(() => {
   return renderNode(doc as TNode);
 });
 
+// Blog-style header for POSTS only: their body doesn't repeat the title/excerpt,
+// so render them automatically above the content. Pages hand-author their own
+// heading inside content_html (e.g. theme-showcase), so they get no auto header.
+const postHeaderHtml = computed(() => {
+  const page = store.currentPage as Record<string, unknown> | null;
+  if (!page || page.type !== 'post') return '';
+  const title = (page.title as string | undefined) ?? '';
+  const excerpt = (page.excerpt as string | undefined) ?? '';
+  if (!title && !excerpt) return '';
+  const titleHtml = title ? `<h1 class="cms-post-title">${escHtml(title)}</h1>` : '';
+  const excerptHtml = excerpt ? `<p class="cms-post-excerpt">${escHtml(excerpt)}</p>` : '';
+  return `<header class="cms-post-header">${titleHtml}${excerptHtml}</header>`;
+});
+
+// What the layout/article actually renders: the post header (if any) + body.
+const bodyHtml = computed(() => postHeaderHtml.value + renderedHtml.value);
+
 // ── SEO meta injection ────────────────────────────────────────────────────────
-
-const injectedTags: HTMLElement[] = [];
-
-function injectMeta(name: string, content: string, property?: string) {
-  if (!content) return;
-  const el = document.createElement('meta');
-  if (property) el.setAttribute('property', property);
-  else el.setAttribute('name', name);
-  el.setAttribute('content', content);
-  document.head.appendChild(el);
-  injectedTags.push(el);
-}
-
-function injectLink(rel: string, href: string) {
-  if (!href) return;
-  const el = document.createElement('link');
-  el.setAttribute('rel', rel);
-  el.setAttribute('href', href);
-  document.head.appendChild(el);
-  injectedTags.push(el);
-}
-
-function applyPageSeo(page: NonNullable<typeof store.currentPage>) {
-  // Remove previously injected tags
-  injectedTags.forEach(el => el.remove());
-  injectedTags.length = 0;
-
-  const title = page.meta_title || page.name;
-  document.title = title;
-
-  if (page.meta_description) injectMeta('description', page.meta_description);
-  if (page.robots)            injectMeta('robots', page.robots);
-  if (page.og_title)          injectMeta('', page.og_title || title, 'og:title');
-  if (page.og_description)    injectMeta('', page.og_description || '', 'og:description');
-  if (page.og_image_url)      injectMeta('', page.og_image_url, 'og:image');
-  if (page.canonical_url)     injectLink('canonical', page.canonical_url);
-
-  if (page.schema_json) {
-    const el = document.createElement('script');
-    el.type = 'application/ld+json';
-    el.textContent = JSON.stringify(page.schema_json);
-    document.head.appendChild(el);
-    injectedTags.push(el);
-  }
-}
+// Update-in-place keyed by `data-seo="ssr"` (see useSeoHandoff) so server-
+// emitted prerender tags are replaced rather than duplicated. This fixes the
+// previous blind `appendChild` that stacked a fresh tag on every navigation.
 
 let styleTag: HTMLStyleElement | null = null;
 
@@ -249,13 +232,30 @@ function applyPageStyle(css: string | null) {
   document.head.appendChild(styleTag);
 }
 
+// The resolved style (explicit style_id, else the admin default) is applied
+// first; the page's own source_css (the editor's CSS tab) is layered on top so
+// it can override the style. There is no theme-switcher opt-out anymore.
+function applyEffectiveStyle() {
+  const styleCss = store.currentStyleCss ?? '';
+  const page = store.currentPage as Record<string, unknown> | null;
+  const pageCss = (page?.source_css as string | null | undefined) ?? '';
+  const combined = [styleCss, pageCss].filter(Boolean).join('\n');
+  applyPageStyle(combined || null);
+}
+
 watch(() => store.currentPage, (page) => {
-  if (page) applyPageSeo(page);
+  if (!page) return;
+  // The unified cms_post carries `title`; injectSeoMeta keys the document title
+  // off `name`, so map it across (legacy pages already set `name`).
+  const source = page as Record<string, unknown>;
+  injectSeoMeta({
+    ...source,
+    name: (source.name as string | undefined) ?? (source.title as string | undefined) ?? null,
+  });
+  applyEffectiveStyle();
 });
 
-watch(() => store.currentStyleCss, (css) => {
-  applyPageStyle(css ?? null);
-});
+watch(() => store.currentStyleCss, applyEffectiveStyle);
 
 const previewToken = computed(() => route.query.preview_token as string | undefined);
 
@@ -268,8 +268,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  injectedTags.forEach(el => el.remove());
-  injectedTags.length = 0;
+  // SEO tags are keyed by `data-seo="ssr"` and updated in place by the next
+  // page, so they are intentionally NOT removed here. Only the page-scoped
+  // style tag is cleaned up.
   if (styleTag) { styleTag.remove(); styleTag = null; }
 });
 </script>
@@ -370,4 +371,12 @@ onUnmounted(() => {
 .cms-page__body :deep(img) { max-width: 100%; height: auto; }
 .cms-page__body :deep(pre) { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; }
 .cms-page__body :deep(blockquote) { border-left: 4px solid #ddd; margin: 0; padding-left: 1rem; color: #666; }
+</style>
+
+<!-- Non-scoped: content is injected via v-html (scoped styles never reach it),
+     so constrain content images globally — a natural-size image must never
+     overflow / stretch the layout. Applies to both the layout and fallback
+     render paths (both wrap content in .cms-page__body). -->
+<style>
+.cms-page__body img { max-width: 100%; height: auto; }
 </style>

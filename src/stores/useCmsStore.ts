@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '@/api';
+import { readSeoHandoff } from '../composables/useSeoHandoff';
 
 export interface CmsCategory {
   id: string;
@@ -12,11 +13,31 @@ export interface CmsCategory {
 export interface CmsPageItem {
   id: string;
   slug: string;
-  name: string;
+  /**
+   * Display name. The unified `cms_post` engine exposes `title`; legacy
+   * `cms_page` rows exposed `name`. The renderer prefers `title` and falls
+   * back to `name` so both shapes render identically (slug-parity).
+   */
+  name?: string;
+  title?: string;
+  /** `page` | `post` — present on unified cms_post rows. */
+  type?: string;
   language: string;
+  content_html?: string | null;
   content_json: Record<string, unknown>;
-  category_id: string | null;
-  is_published: boolean;
+  category_id?: string | null;
+  is_published?: boolean;
+  /** Unified engine fields (cms_post). */
+  layout_id?: string | null;
+  style_id?: string | null;
+  /**
+   * Backend-resolved style: the explicit `style_id` when set, else the
+   * admin-designated default style. The renderer must prefer this over the
+   * raw `style_id` so pages/posts without an explicit style still pick up
+   * the default theme.
+   */
+  resolved_style_id?: string | null;
+  resolved_style_source?: 'explicit' | 'default' | null;
   sort_order: number;
   meta_title: string | null;
   meta_description: string | null;
@@ -157,6 +178,41 @@ export const useCmsStore = defineStore('cms-user', {
         return;
       }
 
+      // Flash-free hand-off (S47.2): when the prerender writer inlined the
+      // current slug's content into `#__POST__`, mount it synchronously with no
+      // API round-trip. Layout/style are still fetched lazily below if present.
+      if (!previewToken) {
+        const handoff = readSeoHandoff();
+        if (handoff && handoff.slug === slug) {
+          this.loading = false;
+          this.error = null;
+          this.accessDenied = false;
+          this.currentLayout = null;
+          this.currentStyleCss = null;
+          this.currentPage = {
+            id: slug,
+            slug,
+            title: handoff.title,
+            name: handoff.title,
+            content_html: handoff.content_html,
+            content_json: {},
+            language: 'en',
+            sort_order: 0,
+            meta_title: handoff.title,
+            meta_description: handoff.seo?.meta_description ?? null,
+            og_title: null,
+            og_description: null,
+            og_image_url: null,
+            canonical_url: handoff.seo?.canonical_url ?? null,
+            robots: handoff.seo?.robots ?? 'index,follow',
+            schema_json: null,
+            updated_at: '',
+          };
+          if (!this.categories.length) this.fetchCategories();
+          return;
+        }
+      }
+
       this.loading = true;
       this.error = null;
       this.accessDenied = false;
@@ -164,29 +220,18 @@ export const useCmsStore = defineStore('cms-user', {
       this.currentLayout = null;
       this.currentStyleCss = null;
       try {
-        // Fetch page and categories in parallel so both are ready before layout renders
-        const params = previewToken ? `?preview_token=${previewToken}` : '';
-        const [res] = await Promise.all([
-          api.get<any>(`/cms/pages/${slug}${params}`),
+        // Fetch post and categories in parallel so both are ready before layout renders
+        const [post] = await Promise.all([
+          this._fetchPostRaw(slug, previewToken),
           this.categories.length ? Promise.resolve() : this.fetchCategories(),
         ]);
-        this.currentPage = res;
-        // Eagerly fetch layout and style when present.
-        // Prefer `resolved_style_id` (sprint 26) so pages without an
-        // explicit `style_id` pick up the admin-designated default style.
-        // Falls back to legacy `style_id` for older backend responses.
-        const layoutId = (res as any).layout_id;
-        const styleId =
-          (res as any).resolved_style_id ?? (res as any).style_id;
-        const [layout, css] = await Promise.all([
-          layoutId ? this._fetchLayoutRaw(layoutId) : Promise.resolve(null),
-          styleId ? this._fetchStyleCssRaw(styleId) : Promise.resolve(null),
-        ]);
+        this.currentPage = post;
+        const { layout, css } = await this._fetchPostAssets(post);
         this.currentLayout = layout;
         this.currentStyleCss = css;
         // Warm the cache so a return visit / prefetch hit is instant.
         if (!previewToken) {
-          this.pageCache[slug] = { page: res, layout, css };
+          this.pageCache[slug] = { page: post, layout, css };
         }
       } catch (e: any) {
         const status = e?.response?.status ?? e?.status;
@@ -202,7 +247,7 @@ export const useCmsStore = defineStore('cms-user', {
     },
 
     /**
-     * Warm the cache for a CMS page (page + layout + style CSS) WITHOUT touching
+     * Warm the cache for a CMS post (post + layout + style CSS) WITHOUT touching
      * the page currently on screen. Best-effort and deduplicated: an
      * already-cached or in-flight slug is a no-op; failures are cached
      * negatively so a dead/gated/non-CMS slug is not retried.
@@ -211,19 +256,59 @@ export const useCmsStore = defineStore('cms-user', {
       if (!slug || slug in this.pageCache || prefetchInFlight.has(slug)) return;
       prefetchInFlight.add(slug);
       try {
-        const page = await api.get<any>(`/cms/pages/${slug}`);
-        const layoutId = (page as any).layout_id;
-        const styleId = (page as any).resolved_style_id ?? (page as any).style_id;
-        const [layout, css] = await Promise.all([
-          layoutId ? this._fetchLayoutRaw(layoutId) : Promise.resolve(null),
-          styleId ? this._fetchStyleCssRaw(styleId) : Promise.resolve(null),
-        ]);
-        this.pageCache[slug] = { page, layout, css };
+        const post = await this._fetchPostRaw(slug);
+        const { layout, css } = await this._fetchPostAssets(post);
+        this.pageCache[slug] = { page: post, layout, css };
       } catch {
         this.pageCache[slug] = { page: null, layout: null, css: null };
       } finally {
         prefetchInFlight.delete(slug);
       }
+    },
+
+    /**
+     * Resolve a slug to a published `cms_post` via the unified engine endpoint
+     * `GET /cms/posts/<slug>`. A bare slug must render a `page` OR a `post`, so
+     * we try the default (`page`) first and, on a 404, retry once as `post`.
+     * Any other error (403 access-gated, etc.) propagates so the caller can
+     * surface the right state. The slug stays a raw path segment so nested
+     * paths (e.g. `about/team`) resolve.
+     */
+    async _fetchPostRaw(slug: string, previewToken?: string): Promise<CmsPageItem> {
+      const config = previewToken
+        ? { params: { preview_token: previewToken } }
+        : undefined;
+      try {
+        return await api.get<CmsPageItem>(`/cms/posts/${slug}`, config);
+      } catch (e: any) {
+        const status = e?.response?.status ?? e?.status;
+        if (status !== 404) throw e;
+        // Bare resolution defaults to `page`; retry as `post` for slugs whose
+        // content type is a post (e.g. a blog article addressed at the root).
+        const postConfig = previewToken
+          ? { params: { type: 'post', preview_token: previewToken } }
+          : { params: { type: 'post' } };
+        return await api.get<CmsPageItem>(`/cms/posts/${slug}`, postConfig);
+      }
+    },
+
+    /**
+     * Fetch a post's layout template + style CSS by id. The backend resolves
+     * `resolved_style_id` = explicit `style_id` OR the admin-designated default
+     * style, so we prefer it (falling back to the raw `style_id` for payloads
+     * from older endpoints). When neither is present the active theme supplies
+     * the CSS.
+     */
+    async _fetchPostAssets(
+      post: CmsPageItem,
+    ): Promise<{ layout: CmsLayout | null; css: string | null }> {
+      const layoutId = post.layout_id;
+      const styleId = post.resolved_style_id ?? post.style_id;
+      const [layout, css] = await Promise.all([
+        layoutId ? this._fetchLayoutRaw(layoutId) : Promise.resolve(null),
+        styleId ? this._fetchStyleCssRaw(styleId) : Promise.resolve(null),
+      ]);
+      return { layout, css };
     },
 
     async fetchLayout(id: string) {

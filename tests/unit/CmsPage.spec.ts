@@ -1,0 +1,350 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { setActivePinia, createPinia } from 'pinia';
+import { mount, RouterLinkStub, flushPromises } from '@vue/test-utils';
+
+const getMock = vi.fn();
+
+vi.mock('@/api', () => ({
+  api: { get: (...args: unknown[]) => getMock(...args) },
+  isAuthenticated: () => false,
+}));
+
+let currentSlug = '';
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('vue-router');
+  return {
+    ...actual,
+    useRoute: () => ({ params: { slug: currentSlug }, query: {} }),
+  };
+});
+
+import CmsPage from '../../src/views/CmsPage.vue';
+import { useCmsStore } from '../../src/stores/useCmsStore';
+
+const POST_LAYOUT = {
+  id: 'L1',
+  slug: 'default',
+  name: 'Default',
+  areas: [{ name: 'content', type: 'content', label: 'Content' }],
+  assignments: [],
+};
+
+function stubFetchCss(css: string) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({ ok: true, status: 200, text: async () => css })),
+  );
+}
+
+function mountPage(slug: string) {
+  currentSlug = slug;
+  return mount(CmsPage, {
+    props: { slug },
+    global: {
+      stubs: {
+        RouterLink: RouterLinkStub,
+        CmsLayoutRenderer: {
+          props: ['layout', 'contentHtml', 'contentBlocks', 'pageAssignments'],
+          // eslint-disable-next-line vue/no-v-html
+          template: '<div class="layout-stub" v-html="contentHtml" />',
+        },
+      },
+      mocks: {
+        $t: (_key: string, fallback?: string) => fallback ?? _key,
+        $router: { back: vi.fn() },
+      },
+    },
+  });
+}
+
+describe('CmsPage public renderer (unified cms_post cutover)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    getMock.mockReset();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    document.title = '';
+    stubFetchCss('.themed{}');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches a page slug from /cms/posts and renders its content inside the layout', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/home') {
+        return {
+          id: 'p-home',
+          type: 'page',
+          slug: 'home',
+          title: 'Home',
+          content_html: '<p>Home body</p>',
+          content_json: null,
+          layout_id: 'L1',
+          style_id: 'S1',
+          use_theme_switcher_styles: false,
+        };
+      }
+      if (url === '/cms/layouts/L1') return POST_LAYOUT;
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('home');
+    await flushPromises();
+
+    const calledUrls = getMock.mock.calls.map((call) => call[0]);
+    expect(calledUrls).toContain('/cms/posts/home');
+    expect(calledUrls).not.toContain('/cms/pages/home');
+    expect(wrapper.find('.layout-stub').exists()).toBe(true);
+    expect(wrapper.html()).toContain('Home body');
+  });
+
+  it('renders a type=post slug (the test23 case) — page→post fallback when bare 404s', async () => {
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/test23') {
+        const type = config?.params?.type;
+        if (type === 'post') {
+          return {
+            id: 'p-23',
+            type: 'post',
+            slug: 'test23',
+            title: 'test23',
+            content_html: 'test html content',
+            content_json: { blocks: [{ type: 'richtext', position: 0, data: { html: 'test html content' } }] },
+            layout_id: null,
+            style_id: null,
+            use_theme_switcher_styles: true,
+          };
+        }
+        // bare (page) attempt 404s
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('test23');
+    await flushPromises();
+
+    expect(wrapper.html()).toContain('test html content');
+    const store = useCmsStore();
+    expect(store.currentPage?.slug).toBe('test23');
+  });
+
+  it('renders an auto title + excerpt header for a post (blog-style)', async () => {
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/my-post') {
+        if (config?.params?.type === 'post') {
+          return {
+            id: 'p-1',
+            type: 'post',
+            slug: 'my-post',
+            title: 'My Great Post',
+            excerpt: 'A short summary of the post.',
+            content_html: '<p>Body copy here</p>',
+            content_json: null,
+            layout_id: 'L1',
+            style_id: null,
+          };
+        }
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url === '/cms/layouts/L1') return POST_LAYOUT;
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('my-post');
+    await flushPromises();
+
+    const html = wrapper.html();
+    expect(html).toContain('cms-post-header');
+    expect(html).toContain('cms-post-title');
+    expect(html).toContain('My Great Post');
+    expect(html).toContain('cms-post-excerpt');
+    expect(html).toContain('A short summary of the post.');
+    // title appears before the body
+    expect(html.indexOf('My Great Post')).toBeLessThan(html.indexOf('Body copy here'));
+  });
+
+  it('does NOT auto-prepend a title header for a page (pages author their own)', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/showcase') {
+        return {
+          id: 'pg-1',
+          type: 'page',
+          slug: 'showcase',
+          title: 'Theme Showcase',
+          excerpt: 'should not be auto-rendered',
+          content_html: '<section><h1>Theme Showcase</h1></section>',
+          content_json: null,
+          layout_id: 'L1',
+          style_id: null,
+        };
+      }
+      if (url === '/cms/layouts/L1') return POST_LAYOUT;
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('showcase');
+    await flushPromises();
+
+    const html = wrapper.html();
+    expect(html).not.toContain('cms-post-header');
+    expect(html).not.toContain('should not be auto-rendered');
+  });
+
+  it('mounts synchronously from the __POST__ handoff WITHOUT calling the API', async () => {
+    const script = document.createElement('script');
+    script.type = 'application/json';
+    script.id = '__POST__';
+    script.textContent = JSON.stringify({
+      slug: 'about',
+      title: 'About Us',
+      content_html: '<p>About body from handoff</p>',
+      seo: { meta_description: 'desc', canonical_url: 'https://x/about' },
+    });
+    document.body.appendChild(script);
+
+    const wrapper = mountPage('about');
+    await flushPromises();
+
+    const calledUrls = getMock.mock.calls.map((call) => call[0]);
+    expect(calledUrls).not.toContain('/cms/posts/about');
+    expect(wrapper.html()).toContain('About body from handoff');
+  });
+
+  it('injects de-duplicated SEO meta from the post', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/seo-page') {
+        return {
+          id: 'p-seo',
+          type: 'page',
+          slug: 'seo-page',
+          title: 'SEO Page',
+          meta_title: 'SEO Meta Title',
+          meta_description: 'My SEO description',
+          canonical_url: 'https://x/seo-page',
+          content_html: '<p>x</p>',
+          content_json: null,
+          layout_id: null,
+          style_id: null,
+          use_theme_switcher_styles: false,
+        };
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    mountPage('seo-page');
+    await flushPromises();
+
+    const desc = document.head.querySelectorAll('meta[name="description"]');
+    expect(desc.length).toBe(1);
+    expect(desc[0].getAttribute('content')).toBe('My SEO description');
+    const canonical = document.head.querySelectorAll('link[rel="canonical"]');
+    expect(canonical.length).toBe(1);
+    expect(document.title).toBe('SEO Meta Title');
+  });
+
+  it('layers the page source_css (CSS tab) on top of the resolved style', async () => {
+    stubFetchCss('.from-style{color:red}');
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/themed') {
+        if (config?.params?.type === 'post') {
+          return {
+            id: 'p-themed',
+            type: 'post',
+            slug: 'themed',
+            title: 'Themed',
+            content_html: '<p>themed body</p>',
+            content_json: null,
+            layout_id: null,
+            style_id: null,
+            resolved_style_id: 'DEFAULT-STYLE',
+            source_css: '.from-tab{color:blue}',
+          };
+        }
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    mountPage('themed');
+    await flushPromises();
+
+    const tags = document.head.querySelectorAll('style[data-cms-page-style]');
+    expect(tags.length).toBe(1);
+    const css = tags[0].textContent ?? '';
+    // resolved style first, then the CSS-tab override after it (so it wins)
+    expect(css).toContain('.from-style');
+    expect(css).toContain('.from-tab');
+    expect(css.indexOf('.from-style')).toBeLessThan(css.indexOf('.from-tab'));
+  });
+
+  it('applies the resolved default style when the post has no explicit style_id', async () => {
+    // The backend resolves `resolved_style_id` to the admin-designated default
+    // when the post/page carries no explicit style. The renderer must fetch +
+    // inject it (theme-switcher off) so default styles reach the public page.
+    stubFetchCss('.default-theme{color:rebeccapurple}');
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/test23') {
+        if (config?.params?.type === 'post') {
+          return {
+            id: 'p-23',
+            type: 'post',
+            slug: 'test23',
+            title: 'test23',
+            content_html: '<p>body</p>',
+            content_json: null,
+            layout_id: null,
+            style_id: null,
+            resolved_style_id: 'DEFAULT-STYLE',
+            resolved_style_source: 'default',
+            use_theme_switcher_styles: false,
+          };
+        }
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    mountPage('test23');
+    await flushPromises();
+
+    const tags = document.head.querySelectorAll('style[data-cms-page-style]');
+    expect(tags.length).toBe(1);
+    expect(tags[0].textContent).toContain('rebeccapurple');
+  });
+
+  it('renders the 404/not-found state for an unknown slug (graceful, no crash)', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/ghost') {
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('ghost');
+    await flushPromises();
+
+    expect(wrapper.find('.cms-page__not-found').exists()).toBe(true);
+    expect(wrapper.text()).toContain('404');
+  });
+});
