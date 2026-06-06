@@ -330,6 +330,170 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     expect(tags[0].textContent).toContain('rebeccapurple');
   });
 
+  it('renders the default layout (resolved_layout_id) when the post has no explicit layout_id', async () => {
+    // S54: the backend resolves `resolved_layout_id` to the admin-designated
+    // default layout for a layout-less (e.g. imported) post. The renderer must
+    // prefer it so the page renders with chrome, not a bare <article>.
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/imported') {
+        if (config?.params?.type === 'post') {
+          return {
+            id: 'p-imp',
+            type: 'post',
+            slug: 'imported',
+            title: 'Imported',
+            content_html: '<p>imported body</p>',
+            content_json: null,
+            layout_id: null,
+            resolved_layout_id: 'L1',
+            resolved_layout_source: 'default',
+            style_id: null,
+          };
+        }
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url === '/cms/layouts/L1') return POST_LAYOUT;
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('imported');
+    await flushPromises();
+
+    const calledUrls = getMock.mock.calls.map((call) => call[0]);
+    expect(calledUrls).toContain('/cms/layouts/L1');
+    expect(wrapper.find('.layout-stub').exists()).toBe(true);
+    expect(wrapper.find('article').exists()).toBe(false);
+  });
+
+  it('prefers resolved_layout_id over a raw layout_id when both are present', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/home') {
+        return {
+          id: 'p-home',
+          type: 'page',
+          slug: 'home',
+          title: 'Home',
+          content_html: '<p>Home body</p>',
+          content_json: null,
+          layout_id: 'L-RAW',
+          resolved_layout_id: 'L1',
+          resolved_layout_source: 'explicit',
+          style_id: null,
+        };
+      }
+      if (url === '/cms/layouts/L1') return POST_LAYOUT;
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    mountPage('home');
+    await flushPromises();
+
+    const calledUrls = getMock.mock.calls.map((call) => call[0]);
+    expect(calledUrls).toContain('/cms/layouts/L1');
+    expect(calledUrls).not.toContain('/cms/layouts/L-RAW');
+  });
+
+  it('still renders a bare <article> for a truly layout-less post (no default)', async () => {
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/plain') {
+        if (config?.params?.type === 'post') {
+          return {
+            id: 'p-plain',
+            type: 'post',
+            slug: 'plain',
+            title: 'Plain',
+            content_html: '<p>plain body</p>',
+            content_json: null,
+            layout_id: null,
+            resolved_layout_id: null,
+            resolved_layout_source: 'none',
+            style_id: null,
+          };
+        }
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('plain');
+    await flushPromises();
+
+    expect(wrapper.find('.layout-stub').exists()).toBe(false);
+    expect(wrapper.find('article').exists()).toBe(true);
+    expect(wrapper.html()).toContain('plain body');
+  });
+
+  it('feeds content_blocks + page_assignments from the post response into CmsLayoutRenderer', async () => {
+    const contentBlocks = {
+      'content-above': { content_html: '<p>above block</p>', source_css: null },
+    };
+    const pageAssignments = [
+      {
+        area_name: 'sidebar-widget',
+        widget_id: 'W-PAGE',
+        sort_order: 0,
+        required_access_level_ids: [],
+        widget: { id: 'W-PAGE', slug: 'page-w', name: 'Page Widget', widget_type: 'html' },
+      },
+    ];
+
+    let receivedContentBlocks: unknown;
+    let receivedPageAssignments: unknown;
+
+    currentSlug = 'areas';
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/areas') {
+        return {
+          id: 'p-areas',
+          type: 'page',
+          slug: 'areas',
+          title: 'Areas',
+          content_html: '<p>main body</p>',
+          content_json: null,
+          layout_id: 'L1',
+          style_id: null,
+          content_blocks: contentBlocks,
+          page_assignments: pageAssignments,
+        };
+      }
+      if (url === '/cms/layouts/L1') return POST_LAYOUT;
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    mount(CmsPage, {
+      props: { slug: 'areas' },
+      global: {
+        stubs: {
+          RouterLink: RouterLinkStub,
+          CmsLayoutRenderer: {
+            props: ['layout', 'contentHtml', 'contentBlocks', 'pageAssignments'],
+            setup(componentProps: { contentBlocks?: unknown; pageAssignments?: unknown }) {
+              receivedContentBlocks = componentProps.contentBlocks;
+              receivedPageAssignments = componentProps.pageAssignments;
+              return () => null;
+            },
+          },
+        },
+        mocks: {
+          $t: (_key: string, fallback?: string) => fallback ?? _key,
+          $router: { back: vi.fn() },
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(receivedContentBlocks).toEqual(contentBlocks);
+    expect(receivedPageAssignments).toEqual(pageAssignments);
+  });
+
   it('renders the 404/not-found state for an unknown slug (graceful, no crash)', async () => {
     getMock.mockImplementation(async (url: string) => {
       if (url === '/cms/posts/ghost') {

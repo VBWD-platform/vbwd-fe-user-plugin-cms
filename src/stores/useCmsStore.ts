@@ -38,6 +38,14 @@ export interface CmsPageItem {
    */
   resolved_style_id?: string | null;
   resolved_style_source?: 'explicit' | 'default' | null;
+  /**
+   * Backend-resolved layout: the explicit `layout_id` when set, else the
+   * admin-designated default layout (cms `default_layout_id`). The renderer
+   * must prefer this over the raw `layout_id` so layout-less (e.g. imported)
+   * pages render with chrome instead of a bare <article>.
+   */
+  resolved_layout_id?: string | null;
+  resolved_layout_source?: 'explicit' | 'default' | 'none' | null;
   sort_order: number;
   meta_title: string | null;
   meta_description: string | null;
@@ -48,6 +56,31 @@ export interface CmsPageItem {
   robots: string;
   schema_json: Record<string, unknown> | null;
   updated_at: string;
+  /**
+   * Per-area content for multi-content-area layouts (S55). Keyed by layout
+   * area name; the primary content area is served by `content_html` and is
+   * NOT present here. The renderer falls back to `content_html` for any area
+   * without a block.
+   */
+  content_blocks?: Record<string, { content_html?: string; source_css?: string | null }>;
+  /**
+   * Per-page widget assignments (S55) that override the layout's widget for
+   * the same area. Access-filtered and widget-enriched server-side; consumed
+   * by `CmsLayoutRenderer.widgetFor()` (page-level over layout-level).
+   */
+  page_assignments?: CmsPageWidgetAssignment[];
+}
+
+/**
+ * A page-level widget assignment as returned by `GET /cms/posts/<slug>`.
+ * Mirrors `CmsLayoutRenderer`'s `WidgetAssignment` prop shape.
+ */
+export interface CmsPageWidgetAssignment {
+  area_name: string;
+  widget_id: string;
+  sort_order: number;
+  required_access_level_ids?: string[];
+  widget?: CmsWidgetData;
 }
 
 export interface PaginatedPages {
@@ -294,15 +327,15 @@ export const useCmsStore = defineStore('cms-user', {
 
     /**
      * Fetch a post's layout template + style CSS by id. The backend resolves
-     * `resolved_style_id` = explicit `style_id` OR the admin-designated default
-     * style, so we prefer it (falling back to the raw `style_id` for payloads
-     * from older endpoints). When neither is present the active theme supplies
-     * the CSS.
+     * `resolved_layout_id` / `resolved_style_id` = the explicit id OR the
+     * admin-designated default, so we prefer each (falling back to the raw id
+     * for payloads from older endpoints). When neither is present the active
+     * theme supplies the CSS and the page renders without a layout.
      */
     async _fetchPostAssets(
       post: CmsPageItem,
     ): Promise<{ layout: CmsLayout | null; css: string | null }> {
-      const layoutId = post.layout_id;
+      const layoutId = post.resolved_layout_id ?? post.layout_id;
       const styleId = post.resolved_style_id ?? post.style_id;
       const [layout, css] = await Promise.all([
         layoutId ? this._fetchLayoutRaw(layoutId) : Promise.resolve(null),

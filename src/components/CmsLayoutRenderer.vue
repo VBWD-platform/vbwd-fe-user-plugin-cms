@@ -59,7 +59,7 @@ interface WidgetAssignment {
 const props = defineProps<{
   layout: CmsLayout;
   contentHtml: string;
-  contentBlocks?: Record<string, { content_html?: string; source_css?: string }>;
+  contentBlocks?: Record<string, { content_html?: string; source_css?: string | null }>;
   pageAssignments?: WidgetAssignment[];
 }>();
 

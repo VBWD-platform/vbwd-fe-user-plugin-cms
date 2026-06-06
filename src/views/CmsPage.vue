@@ -110,20 +110,13 @@ const pageTitle = computed(() => {
   return (page?.title as string | undefined) ?? (page?.name as string | undefined) ?? '';
 });
 
-// Multi-content blocks from page data (keyed by area name)
-const pageContentBlocks = computed(() => {
-  const page = store.currentPage as Record<string, unknown> | null;
-  if (!page) return {};
-  return (page.content_blocks as Record<string, { content_html?: string; source_css?: string }>) || {};
-});
+// Multi-content blocks from page data (keyed by area name).
+const pageContentBlocks = computed(() => store.currentPage?.content_blocks ?? {});
 
-// Page-level widget assignments (override layout widgets for same area)
+// Page-level widget assignments (override layout widgets for the same area).
 const pageWidgetAssignments = computed(() => {
-  const page = store.currentPage as Record<string, unknown> | null;
-  if (!page) return undefined;
-  const assignments = page.page_assignments as unknown[] | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return Array.isArray(assignments) && assignments.length > 0 ? assignments as any : undefined;
+  const assignments = store.currentPage?.page_assignments;
+  return assignments && assignments.length > 0 ? assignments : undefined;
 });
 
 // ── TipTap JSON → HTML renderer (no external dependency) ─────────────────────
