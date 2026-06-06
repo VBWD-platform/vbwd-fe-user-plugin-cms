@@ -99,7 +99,7 @@ const crumbs = computed<Crumb[]>(() => {
       if (category) {
         result.push({ label: category.name, to: '/' + category.slug, current: false });
       }
-      result.push({ label: page.name, to: route.path, current: true });
+      result.push({ label: page.title ?? page.name ?? '', to: route.path, current: true });
       return result;
     }
   }
