@@ -1,6 +1,11 @@
+import { defineAsyncComponent } from 'vue';
 import type { IPlugin, IPlatformSDK } from 'vbwd-view-component';
 import { registerCmsVueComponent } from './src/registry/vueComponentRegistry';
 import { registerPostContentType } from './src/registry/contentTypeRegistry';
+import {
+  registerCmsPageType,
+  resolveCmsPageType,
+} from './src/registry/pageTypeRegistry';
 import RichTextBlock from './src/components/RichTextBlock.vue';
 import { createCmsMiddlewareRoutingGuard } from './src/routing/middlewareRoutingGuard';
 import { api as hostApi } from '@/api';
@@ -21,7 +26,10 @@ export const cmsPlugin: IPlugin = {
   _active: false,
 
   install(sdk: IPlatformSDK) {
-    // Register built-in CMS vue-component widgets
+    // Register built-in CMS vue-component widgets. Async dynamic imports that
+    // populate the (non-reactive) vue-component registry; an admin drops any of
+    // these onto a cms page/layout as a `vue-component` widget and the widget
+    // renderer resolves it by name.
     import('./src/components/CmsBreadcrumb.vue').then((m) => {
       registerCmsVueComponent('CmsBreadcrumb', m.default);
     });
@@ -31,15 +39,13 @@ export const cmsPlugin: IPlugin = {
     import('./src/components/ContactForm.vue').then((m) => {
       registerCmsVueComponent('ContactForm', m.default);
     });
-
-    // S47.3 — the "Category" (term-list) widget. Registered under both names so
-    // an admin can drop a `vue-component` widget (content_json.component =
+    // S47.3 — the "Category" (term-list) widget. Registered under both names
+    // so an admin can drop a `vue-component` widget (content_json.component =
     // "Category" | "PostTermList") onto any cms page to list a term's posts.
     import('./src/components/PostTermListWidget.vue').then((m) => {
       registerCmsVueComponent('Category', m.default);
       registerCmsVueComponent('PostTermList', m.default);
     });
-
     // S47.4 — the decoupled Search trio companions. `Search` (box) URL-syncs
     // `?q=`; `SearchResults` reads it and renders matches through PostList.
     // They compose on one page or across pages via the URL param.
@@ -49,10 +55,24 @@ export const cmsPlugin: IPlugin = {
     import('./src/components/PostSearchResults.vue').then((m) => {
       registerCmsVueComponent('SearchResults', m.default);
     });
-
-    // Custom Code widget — an admin drops it onto any page and pastes a raw
-    // HTML/JS block (e.g. the Google gtag analytics snippet) into its
-    // content_json.code; the widget builds + executes the <script> tags safely.
+    // URL-driven tag-archive widget. `CmsTagCloud` chips link to
+    // `/tag?tag=<slug>`; `TagArchive` reads `?tag=` and lists that tag's posts
+    // through the same usePosts.byTerm + PostList path as the Category widget.
+    import('./src/components/TagArchive.vue').then((m) => {
+      registerCmsVueComponent('TagArchive', m.default);
+    });
+    // Public add-on catalogue widget. Fetches GET /api/v1/addons/ and renders a
+    // card per add-on with the price rendered through the shared PriceDisplay
+    // (fed by the S85 price_info block). An admin drops it onto any cms
+    // page/layout vue area as a `vue-component` widget (content_json.component =
+    // "AddonCatalog").
+    import('./src/components/AddonCatalog.vue').then((m) => {
+      registerCmsVueComponent('AddonCatalog', m.default);
+    });
+    // Custom Code widget — an admin drops it onto any page or layout area and
+    // pastes a raw HTML/JS block (e.g. the Google gtag analytics snippet) into
+    // its config.code; the widget builds + executes the <script> tags safely
+    // when rendered through CmsLayoutRenderer → CmsWidgetRenderer.
     import('./src/components/CustomCodeWidget.vue').then((m) => {
       registerCmsVueComponent('CustomCode', m.default);
     });
@@ -61,6 +81,12 @@ export const cmsPlugin: IPlugin = {
     // A post with no blocks renders its content_html as one implicit richtext
     // block; extension plugins register further types via the same registry.
     registerPostContentType('richtext', RichTextBlock, { placement: 'inline' });
+
+    // Built-in CMS page types. CmsPage.vue dispatches a post's `type` to the
+    // registered component (default `page`). Extension plugins register their
+    // own type (e.g. `video` → CmsPageTypeVideo) via the re-exported seam.
+    registerCmsPageType('page', defineAsyncComponent(() => import('./src/views/CmsPageTypePage.vue')));
+    registerCmsPageType('post', defineAsyncComponent(() => import('./src/views/CmsPageTypePost.vue')));
 
     sdk.addRoute({
       path: '/:slug(.+)',
@@ -98,3 +124,8 @@ export const cmsPlugin: IPlugin = {
   activate() { this._active = true; },
   deactivate() { this._active = false; },
 };
+
+// Public SDK seam: external fe-user plugins import these from the cms plugin
+// entry to register their own page types (e.g. a video plugin →
+// CmsPageTypeVideo) without touching cms/core.
+export { registerCmsPageType, resolveCmsPageType };

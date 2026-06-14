@@ -19,7 +19,13 @@ vi.mock('vue-router', async () => {
 });
 
 import CmsPage from '../../src/views/CmsPage.vue';
+import CmsPageTypePage from '../../src/views/CmsPageTypePage.vue';
+import CmsPageTypePost from '../../src/views/CmsPageTypePost.vue';
 import { useCmsStore } from '../../src/stores/useCmsStore';
+import {
+  registerCmsPageType,
+  resetCmsPageTypes,
+} from '../../src/registry/pageTypeRegistry';
 
 const POST_LAYOUT = {
   id: 'L1',
@@ -60,6 +66,11 @@ function mountPage(slug: string) {
 describe('CmsPage public renderer (unified cms_post cutover)', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    // Mirror the plugin install(): register the built-in page types so the
+    // dispatcher resolves them (real components, not stubs) end-to-end.
+    resetCmsPageTypes();
+    registerCmsPageType('page', CmsPageTypePage);
+    registerCmsPageType('post', CmsPageTypePost);
     getMock.mockReset();
     document.head.innerHTML = '';
     document.body.innerHTML = '';
@@ -135,7 +146,7 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     expect(store.currentPage?.slug).toBe('test23');
   });
 
-  it('renders an auto title + excerpt header for a post (blog-style)', async () => {
+  it('injects the post title heading + tags into the content body (never above the page, never the excerpt)', async () => {
     getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
       if (url === '/cms/posts/my-post') {
         if (config?.params?.type === 'post') {
@@ -149,6 +160,7 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
             content_json: null,
             layout_id: 'L1',
             style_id: null,
+            terms: [{ id: 't1', term_type: 'tag', slug: 'vue', name: 'Vue' }],
           };
         }
         const error = new Error('not found') as Error & { response?: { status: number } };
@@ -164,13 +176,18 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     await flushPromises();
 
     const html = wrapper.html();
-    expect(html).toContain('cms-post-header');
+    // Title heading + tags are injected under the header, into the content body.
     expect(html).toContain('cms-post-title');
     expect(html).toContain('My Great Post');
-    expect(html).toContain('cms-post-excerpt');
-    expect(html).toContain('A short summary of the post.');
-    // title appears before the body
-    expect(html.indexOf('My Great Post')).toBeLessThan(html.indexOf('Body copy here'));
+    expect(html).toContain('cms-post-tags');
+    expect(html).toContain('href="/tag?tag=vue"');
+    expect(html).toContain('Body copy here');
+    // The excerpt is never injected (the post body keeps its own lead).
+    expect(html).not.toContain('cms-post-excerpt');
+    expect(html).not.toContain('A short summary of the post.');
+    // Title → tags → body order (tags under the heading, both above the content).
+    expect(html.indexOf('cms-post-title')).toBeLessThan(html.indexOf('cms-post-tags'));
+    expect(html.indexOf('cms-post-tags')).toBeLessThan(html.indexOf('Body copy here'));
   });
 
   it('does NOT auto-prepend a title header for a page (pages author their own)', async () => {
@@ -492,6 +509,66 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
 
     expect(receivedContentBlocks).toEqual(contentBlocks);
     expect(receivedPageAssignments).toEqual(pageAssignments);
+  });
+
+  it('dispatches type=post to the post type component (tags injected)', async () => {
+    getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/cms/posts/dispatch-post') {
+        if (config?.params?.type === 'post') {
+          return {
+            id: 'p-dp',
+            type: 'post',
+            slug: 'dispatch-post',
+            title: 'Dispatched Post',
+            excerpt: 'post excerpt',
+            content_html: '<p>post body</p>',
+            content_json: null,
+            layout_id: null,
+            style_id: null,
+            terms: [{ id: 't1', term_type: 'tag', slug: 'release', name: 'Release' }],
+          };
+        }
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('dispatch-post');
+    await flushPromises();
+
+    // The post type component is the only one that injects tag chips — their
+    // presence proves the dispatcher resolved the `post` type component.
+    expect(wrapper.html()).toContain('cms-post-tags');
+    expect(wrapper.html()).toContain('href="/tag?tag=release"');
+  });
+
+  it('falls back to the page type component for a page (no auto header)', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts/dispatch-page') {
+        return {
+          id: 'pg-dp',
+          type: 'page',
+          slug: 'dispatch-page',
+          title: 'Dispatched Page',
+          excerpt: 'should not auto-render',
+          content_html: '<p>page body</p>',
+          content_json: null,
+          layout_id: null,
+          style_id: null,
+        };
+      }
+      if (url.startsWith('/cms/categories')) return { items: [] };
+      return {};
+    });
+
+    const wrapper = mountPage('dispatch-page');
+    await flushPromises();
+
+    expect(wrapper.html()).not.toContain('cms-post-header');
+    expect(wrapper.html()).toContain('page body');
   });
 
   it('renders the 404/not-found state for an unknown slug (graceful, no crash)', async () => {

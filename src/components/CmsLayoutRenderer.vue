@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue';
-import type { CmsLayout, CmsWidgetData } from '../stores/useCmsStore';
+import type { CmsLayout, CmsWidgetData, CmsPageWidgetAssignment } from '../stores/useCmsStore';
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 import { useCmsSpaLinks } from '../composables/useCmsSpaLinks';
 import { useCmsLinkPrefetch } from '../composables/useCmsLinkPrefetch';
@@ -50,17 +50,11 @@ const cmsLayoutEl = ref<HTMLElement | null>(null);
 useCmsSpaLinks(cmsLayoutEl);
 useCmsLinkPrefetch(cmsLayoutEl);
 
-interface WidgetAssignment {
-  area_name: string;
-  widget?: CmsWidgetData;
-  [key: string]: unknown;
-}
-
 const props = defineProps<{
   layout: CmsLayout;
   contentHtml: string;
   contentBlocks?: Record<string, { content_html?: string; source_css?: string | null }>;
-  pageAssignments?: WidgetAssignment[];
+  pageAssignments?: CmsPageWidgetAssignment[];
 }>();
 
 /**

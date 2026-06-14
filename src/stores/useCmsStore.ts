@@ -20,10 +20,14 @@ export interface CmsPageItem {
    */
   name?: string;
   title?: string;
+  /** Short post summary. Posts render it under the title; pages ignore it. */
+  excerpt?: string | null;
   /** `page` | `post` — present on unified cms_post rows. */
   type?: string;
   language: string;
   content_html?: string | null;
+  /** The editor CSS-tab override, layered on top of the resolved style. */
+  source_css?: string | null;
   content_json: Record<string, unknown>;
   category_id?: string | null;
   is_published?: boolean;
@@ -69,6 +73,20 @@ export interface CmsPageItem {
    * by `CmsLayoutRenderer.widgetFor()` (page-level over layout-level).
    */
   page_assignments?: CmsPageWidgetAssignment[];
+  /**
+   * Taxonomy terms (categories + tags) attached to a post, as returned by
+   * `GET /cms/posts/<slug>`. `term_type` is `"category"` or `"tag"`. Used by
+   * the post page type to render a tag cloud under the title.
+   */
+  terms?: Array<{ id: string; term_type: string; slug: string; name: string; parent_id?: string | null }>;
+  /**
+   * S77 — generic core tags / custom fields appended by the backend serializer
+   * (`append_tags_and_custom_fields`), ALONGSIDE the legacy `terms` taxonomy.
+   * Rendered by the shared fe-core read-only display components.
+   */
+  tags?: string[];
+  custom_fields?: Record<string, unknown>;
+  custom_field_defs?: import('vbwd-view-component').CustomFieldDef[];
 }
 
 /**

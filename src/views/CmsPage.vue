@@ -58,41 +58,30 @@
       </div>
     </div>
 
-    <!-- Layout-based rendering -->
-    <template v-else-if="store.currentLayout">
-      <CmsLayoutRenderer
-        :layout="store.currentLayout"
-        :content-html="bodyHtml"
-        :content-blocks="pageContentBlocks"
-        :page-assignments="pageWidgetAssignments"
-      />
-    </template>
-
-    <!-- Fallback: simple article rendering (no layout) -->
-    <article
+    <!-- Page present: dispatch to the registered type component (default page) -->
+    <component
+      :is="typeComponent"
       v-else
-      class="cms-page__content"
-    >
-      <h1 class="cms-page__title">
-        {{ pageTitle }}
-      </h1>
-      <!-- eslint-disable vue/no-v-html -->
-      <div
-        class="cms-page__body"
-        v-html="renderedHtml"
-      />
-      <!-- eslint-enable vue/no-v-html -->
-    </article>
+      :page="store.currentPage"
+      :layout="store.currentLayout"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted } from 'vue';
+/**
+ * CMS page dispatcher. Owns the fetch + the loading / access-denied / 404
+ * states; when a page is present it resolves the type component from
+ * `pageTypeRegistry` by `currentPage.type` (default `page` when absent or
+ * unregistered) and renders it. The 404 markup + styles stay here because they
+ * render when there is NO page, so no type component applies.
+ */
+import { computed, watch, onMounted, type Component } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCmsStore } from '../stores/useCmsStore';
 import { isAuthenticated as checkAuth } from '@/api';
-import CmsLayoutRenderer from '../components/CmsLayoutRenderer.vue';
-import { injectSeoMeta } from '../composables/useSeoHandoff';
+import { resolveCmsPageType } from '../registry/pageTypeRegistry';
+import CmsPageTypePage from './CmsPageTypePage.vue';
 
 const isAuthenticated = checkAuth();
 
@@ -103,152 +92,10 @@ const store = useCmsStore();
 
 const effectiveSlug = computed(() => props.slug ?? (route.params.slug as string));
 
-// Unified cms_post exposes `title`; legacy cms_page exposed `name`. Prefer
-// `title` and fall back to `name` so both shapes render the same heading.
-const pageTitle = computed(() => {
-  const page = store.currentPage as Record<string, unknown> | null;
-  return (page?.title as string | undefined) ?? (page?.name as string | undefined) ?? '';
+const typeComponent = computed<Component>(() => {
+  const type = store.currentPage?.type ?? 'page';
+  return resolveCmsPageType(type) ?? resolveCmsPageType('page') ?? CmsPageTypePage;
 });
-
-// Multi-content blocks from page data (keyed by area name).
-const pageContentBlocks = computed(() => store.currentPage?.content_blocks ?? {});
-
-// Page-level widget assignments (override layout widgets for the same area).
-const pageWidgetAssignments = computed(() => {
-  const assignments = store.currentPage?.page_assignments;
-  return assignments && assignments.length > 0 ? assignments : undefined;
-});
-
-// ── TipTap JSON → HTML renderer (no external dependency) ─────────────────────
-
-type TNode = { type: string; text?: string; marks?: TMark[]; content?: TNode[]; attrs?: Record<string, unknown> };
-type TMark = { type: string; attrs?: Record<string, unknown> };
-
-function renderNode(node: TNode): string {
-  if (!node) return '';
-
-  if (node.type === 'text') {
-    let text = escHtml(node.text ?? '');
-    if (node.marks) {
-      for (const mark of node.marks) {
-        if (mark.type === 'bold') text = `<strong>${text}</strong>`;
-        else if (mark.type === 'italic') text = `<em>${text}</em>`;
-        else if (mark.type === 'underline') text = `<u>${text}</u>`;
-        else if (mark.type === 'strike') text = `<s>${text}</s>`;
-        else if (mark.type === 'code') text = `<code>${text}</code>`;
-        else if (mark.type === 'link') {
-          const href = escAttr(String(mark.attrs?.href ?? ''));
-          const target = mark.attrs?.target ? ` target="${escAttr(String(mark.attrs.target))}"` : '';
-          text = `<a href="${href}"${target}>${text}</a>`;
-        }
-      }
-    }
-    return text;
-  }
-
-  const children = (node.content ?? []).map(renderNode).join('');
-
-  switch (node.type) {
-    case 'doc':         return children;
-    case 'paragraph':   return `<p>${children || '&nbsp;'}</p>`;
-    case 'heading': {
-      const level = Number(node.attrs?.level ?? 2);
-      return `<h${level}>${children}</h${level}>`;
-    }
-    case 'bulletList':  return `<ul>${children}</ul>`;
-    case 'orderedList': return `<ol>${children}</ol>`;
-    case 'listItem':    return `<li>${children}</li>`;
-    case 'blockquote':  return `<blockquote>${children}</blockquote>`;
-    case 'codeBlock':   return `<pre><code>${children}</code></pre>`;
-    case 'hardBreak':   return '<br>';
-    case 'horizontalRule': return '<hr>';
-    case 'image': {
-      const src = escAttr(String(node.attrs?.src ?? ''));
-      const alt = escAttr(String(node.attrs?.alt ?? ''));
-      return `<img src="${src}" alt="${alt}" style="max-width:100%">`;
-    }
-    default:            return children;
-  }
-}
-
-function escHtml(str: string) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escAttr(str: string) {
-  return str.replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
-
-const renderedHtml = computed(() => {
-  // Prefer raw content_html (set via HTML tab) so embedded scripts / iframes are preserved
-  const raw = (store.currentPage as any)?.content_html;
-  if (raw) return raw;
-  const doc = store.currentPage?.content_json;
-  if (!doc || typeof doc !== 'object') return '';
-  return renderNode(doc as TNode);
-});
-
-// Blog-style header for POSTS only: their body doesn't repeat the title/excerpt,
-// so render them automatically above the content. Pages hand-author their own
-// heading inside content_html (e.g. theme-showcase), so they get no auto header.
-const postHeaderHtml = computed(() => {
-  const page = store.currentPage as Record<string, unknown> | null;
-  if (!page || page.type !== 'post') return '';
-  const title = (page.title as string | undefined) ?? '';
-  const excerpt = (page.excerpt as string | undefined) ?? '';
-  if (!title && !excerpt) return '';
-  const titleHtml = title ? `<h1 class="cms-post-title">${escHtml(title)}</h1>` : '';
-  const excerptHtml = excerpt ? `<p class="cms-post-excerpt">${escHtml(excerpt)}</p>` : '';
-  return `<header class="cms-post-header">${titleHtml}${excerptHtml}</header>`;
-});
-
-// What the layout/article actually renders: the post header (if any) + body.
-const bodyHtml = computed(() => postHeaderHtml.value + renderedHtml.value);
-
-// ── SEO meta injection ────────────────────────────────────────────────────────
-// Update-in-place keyed by `data-seo="ssr"` (see useSeoHandoff) so server-
-// emitted prerender tags are replaced rather than duplicated. This fixes the
-// previous blind `appendChild` that stacked a fresh tag on every navigation.
-
-let styleTag: HTMLStyleElement | null = null;
-
-function applyPageStyle(css: string | null) {
-  if (styleTag) { styleTag.remove(); styleTag = null; }
-  if (!css) return;
-  styleTag = document.createElement('style');
-  styleTag.setAttribute('data-cms-page-style', '');
-  styleTag.textContent = css;
-  document.head.appendChild(styleTag);
-}
-
-// The resolved style (explicit style_id, else the admin default) is applied
-// first; the page's own source_css (the editor's CSS tab) is layered on top so
-// it can override the style. There is no theme-switcher opt-out anymore.
-function applyEffectiveStyle() {
-  const styleCss = store.currentStyleCss ?? '';
-  const page = store.currentPage as Record<string, unknown> | null;
-  const pageCss = (page?.source_css as string | null | undefined) ?? '';
-  const combined = [styleCss, pageCss].filter(Boolean).join('\n');
-  applyPageStyle(combined || null);
-}
-
-watch(() => store.currentPage, (page) => {
-  if (!page) return;
-  // The unified cms_post carries `title`; injectSeoMeta keys the document title
-  // off `name`, so map it across (legacy pages already set `name`).
-  const source = page as Record<string, unknown>;
-  injectSeoMeta({
-    ...source,
-    name: (source.name as string | undefined) ?? (source.title as string | undefined) ?? null,
-  });
-  applyEffectiveStyle();
-});
-
-watch(() => store.currentStyleCss, applyEffectiveStyle);
 
 const previewToken = computed(() => route.query.preview_token as string | undefined);
 
@@ -258,13 +105,6 @@ watch(effectiveSlug, (slug) => {
 
 onMounted(() => {
   store.fetchPage(effectiveSlug.value, previewToken.value);
-});
-
-onUnmounted(() => {
-  // SEO tags are keyed by `data-seo="ssr"` and updated in place by the next
-  // page, so they are intentionally NOT removed here. Only the page-scoped
-  // style tag is cleaned up.
-  if (styleTag) { styleTag.remove(); styleTag = null; }
 });
 </script>
 
@@ -360,16 +200,4 @@ onUnmounted(() => {
   .cms-page__not-found-ctas { flex-direction: column; width: 100%; max-width: 320px; margin: 0 auto; }
   .cms-page__not-found-ctas :deep(.btn) { width: 100%; }
 }
-.cms-page__title { margin-bottom: 1.5rem; }
-.cms-page__body :deep(img) { max-width: 100%; height: auto; }
-.cms-page__body :deep(pre) { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; }
-.cms-page__body :deep(blockquote) { border-left: 4px solid #ddd; margin: 0; padding-left: 1rem; color: #666; }
-</style>
-
-<!-- Non-scoped: content is injected via v-html (scoped styles never reach it),
-     so constrain content images globally — a natural-size image must never
-     overflow / stretch the layout. Applies to both the layout and fallback
-     render paths (both wrap content in .cms-page__body). -->
-<style>
-.cms-page__body img { max-width: 100%; height: auto; }
 </style>

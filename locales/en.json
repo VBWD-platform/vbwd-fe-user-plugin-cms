@@ -18,6 +18,16 @@
       "prompt": "Type a search term to begin.",
       "loading": "Searching…",
       "noResults": "No results found."
+    },
+    "tagArchive": {
+      "heading": "Posts tagged \"{tag}\"",
+      "prompt": "Select a tag.",
+      "loading": "Loading…",
+      "empty": "No posts found for this tag."
+    },
+    "addonCatalog": {
+      "loading": "Loading add-ons…",
+      "empty": "No add-ons available."
     }
   },
   "contactForm": {

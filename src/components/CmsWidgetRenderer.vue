@@ -175,6 +175,7 @@ import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import type { Component } from 'vue';
 import type { CmsWidgetData, CmsMenuItemData } from '../stores/useCmsStore';
 import { resolveCmsVueComponent } from '../registry/vueComponentRegistry';
+import { buildCustomCodeScripts } from '../utils/customCode';
 
 // Cart badge support for menu widgets with show_cart config
 const showCart = computed(() => {
@@ -203,7 +204,8 @@ const props = defineProps<{
 
 const htmlWidgetEl = ref<HTMLElement | null>(null);
 
-const widgetHtml = computed(() => {
+// Raw decoded HTML blob (base64 in content_json.content) before any processing.
+const decodedHtml = computed(() => {
   const b64 = (props.widget.content_json as any)?.content;
   if (!b64) return '';
   try {
@@ -213,29 +215,67 @@ const widgetHtml = computed(() => {
   }
 });
 
-// Re-execute <script> tags that v-html silently drops
-function runScripts(container: HTMLElement) {
-  container.querySelectorAll('script').forEach(old => {
-    const s = document.createElement('script');
-    if (old.src) {
-      Array.from(old.attributes).forEach(a => s.setAttribute(a.name, a.value));
-    } else {
-      s.textContent = old.textContent;
-    }
-    old.replaceWith(s);
-  });
-}
-
-// onMounted handles the initial render (immediate watch fires before DOM exists)
-onMounted(async () => {
-  await nextTick();
-  if (htmlWidgetEl.value) runScripts(htmlWidgetEl.value);
+// What v-html renders: the decoded HTML with every <script> removed.
+//
+// DECISION (documented): a <script> injected as parsed markup via v-html NEVER
+// executes (browser spec), so leaving it in the v-html output would only render
+// a dead, inert duplicate of the script we re-build and append below. We strip
+// <script> here so the live scripts (built by the shared buildCustomCodeScripts
+// helper and appended to the container ref) are the single source of execution.
+// All non-script markup keeps rendering exactly as before, so script-less html
+// widgets are pixel-identical.
+const widgetHtml = computed(() => {
+  const raw = decodedHtml.value;
+  if (!raw) return '';
+  const template = document.createElement('template');
+  template.innerHTML = raw;
+  template.content.querySelectorAll('script').forEach(script => script.remove());
+  return template.innerHTML;
 });
 
-// watch handles subsequent content changes (e.g. widget updated while page is open)
-watch(widgetHtml, async () => {
+// The script nodes this widget appended (so re-render / unmount can remove
+// exactly its own), plus the html currently injected (idempotency key guarding
+// against a double-inject on an identical re-render).
+let injectedScripts: HTMLScriptElement[] = [];
+let injectedHtml: string | null = null;
+
+function clearInjectedScripts() {
+  for (const script of injectedScripts) {
+    script.remove();
+  }
+  injectedScripts = [];
+}
+
+function renderScripts() {
+  const container = htmlWidgetEl.value;
+  if (!container) return;
+
+  const raw = decodedHtml.value;
+  if (raw === injectedHtml) return; // already injected — no-op
+
+  clearInjectedScripts();
+  injectedScripts = buildCustomCodeScripts(document, raw);
+  for (const script of injectedScripts) {
+    container.appendChild(script);
+  }
+  injectedHtml = raw;
+}
+
+// onMounted handles the initial render (immediate watch fires before DOM exists).
+onMounted(async () => {
   await nextTick();
-  if (htmlWidgetEl.value) runScripts(htmlWidgetEl.value);
+  renderScripts();
+});
+
+// watch handles subsequent content changes (e.g. widget updated while open).
+watch(decodedHtml, async () => {
+  await nextTick();
+  renderScripts();
+});
+
+onUnmounted(() => {
+  clearInjectedScripts();
+  injectedHtml = null;
 });
 
 const widgetCss = computed(() => props.widget.source_css ?? '');
