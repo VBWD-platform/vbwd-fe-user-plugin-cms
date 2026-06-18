@@ -17,6 +17,7 @@
         :key="post.id"
         :post="post"
         :display="display"
+        :detail-base="detailBase"
       />
     </template>
   </div>
@@ -40,6 +41,12 @@ interface PostDisplay {
 const props = defineProps<{
   posts: PostSummary[];
   display?: PostDisplay;
+  /**
+   * Optional detail-link base forwarded verbatim to each PostCard (e.g. the
+   * embed archive passes `/cms/embed/<type>/post/`). Absent → cards keep the
+   * default `/<slug>` site link, so existing list usages are unchanged.
+   */
+  detailBase?: string;
 }>();
 
 const mode = computed<PostListMode>(() => props.display?.mode ?? 'titles');

@@ -88,6 +88,27 @@ export const cmsPlugin: IPlugin = {
     registerCmsPageType('page', defineAsyncComponent(() => import('./src/views/CmsPageTypePage.vue')));
     registerCmsPageType('post', defineAsyncComponent(() => import('./src/views/CmsPageTypePost.vue')));
 
+    // S91 — chrome-light embed routes for the mobile WebView. Registered
+    // BEFORE the `/:slug(.+)` catch-all so the literal `/cms/embed/...` paths
+    // win and are never swallowed by the single-param page catch-all. The more
+    // specific detail route (`.../post/:slug`) is registered before the archive
+    // route so `/cms/embed/<type>/post/<slug>` resolves to the detail
+    // dispatcher, not the archive's `:category`. `meta.embed` makes the host
+    // App.vue render a bare <router-view /> (no global nav/burger/footer).
+    sdk.addRoute({
+      path: '/cms/embed/:type/post/:slug',
+      name: 'cms-embed-detail',
+      component: () => import('./src/views/CmsPage.vue'),
+      meta: { requiresAuth: false, embed: true },
+    });
+
+    sdk.addRoute({
+      path: '/cms/embed/:type/:category',
+      name: 'cms-embed-archive',
+      component: () => import('./src/views/CmsEmbedArchive.vue'),
+      meta: { requiresAuth: false, embed: true },
+    });
+
     sdk.addRoute({
       path: '/:slug(.+)',
       name: 'cms-page',

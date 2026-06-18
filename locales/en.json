@@ -2,6 +2,10 @@
   "cms": {
     "loading": "Loading…",
     "notFound": "Page not found.",
+    "embed": {
+      "notFoundTitle": "No posts found",
+      "notFoundMessage": "This category has no posts, or does not exist."
+    },
     "allCategories": "All",
     "noPages": "No pages available.",
     "readMore": "Read more",

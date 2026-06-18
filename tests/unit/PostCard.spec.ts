@@ -37,6 +37,24 @@ describe('PostCard', () => {
     expect(wrapper.text()).toContain('Hello World');
   });
 
+  it('builds the embed detail path from detailBase when supplied', () => {
+    const wrapper = mount(PostCard, {
+      props: { post: makePost(), display: {}, detailBase: '/cms/embed/post/post/' },
+      global: {
+        stubs: { RouterLink: RouterLinkStub },
+        mocks: { $t: (key: string) => key },
+      },
+    });
+    const link = wrapper.findComponent(RouterLinkStub);
+    expect(link.props('to')).toBe('/cms/embed/post/post/hello-world');
+  });
+
+  it('keeps the bare /:slug detail path when no detailBase is supplied (back-compat)', () => {
+    const wrapper = mountCard(makePost());
+    const link = wrapper.findComponent(RouterLinkStub);
+    expect(link.props('to')).toBe('/hello-world');
+  });
+
   it('renders the lead image lazily with explicit width/height (no CLS)', () => {
     const wrapper = mountCard(
       makePost({ og_image_url: 'https://cdn/img.avif' }),

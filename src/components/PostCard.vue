@@ -75,6 +75,14 @@ interface PostDisplay {
 const props = defineProps<{
   post: PostSummary;
   display?: PostDisplay;
+  /**
+   * Optional base path for the detail link. When supplied (e.g. the embed
+   * archive passes `/cms/embed/<type>/post/`), the card links to
+   * `<detailBase><slug>` so navigation stays in embed mode. When absent the
+   * card keeps its default `/<slug>` site link (unchanged for every existing
+   * usage — the Category/Tag/Search widgets).
+   */
+  detailBase?: string;
 }>();
 
 // Default lead-image dimensions when the source does not carry them; explicit
@@ -91,7 +99,11 @@ const showExcerpt = computed(
 );
 const showFull = computed(() => mode.value === 'full');
 
-const detailPath = computed(() => `/${props.post.slug}`);
+const detailPath = computed(() =>
+  props.detailBase
+    ? `${props.detailBase}${props.post.slug}`
+    : `/${props.post.slug}`,
+);
 
 const leadImageUrl = computed(() => props.post.og_image_url ?? null);
 const leadImageWidth = computed(

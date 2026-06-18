@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mount, RouterLinkStub } from '@vue/test-utils';
 import PostList from '../../src/components/PostList.vue';
+import PostCard from '../../src/components/PostCard.vue';
 import type { PostSummary } from '../../src/composables/usePosts';
 
 function makePost(n: number): PostSummary {
@@ -42,6 +43,24 @@ describe('PostList', () => {
     const wrapper = mountList([], { mode: 'excerpt' });
     expect(wrapper.findAll('[data-testid="post-card"]')).toHaveLength(0);
     expect(wrapper.find('[data-testid="post-list-empty"]').exists()).toBe(true);
+  });
+
+  it('threads detailBase through to each PostCard so links stay in embed mode', () => {
+    const wrapper = mount(PostList, {
+      props: {
+        posts: [makePost(1), makePost(2)],
+        display: { mode: 'excerpt' },
+        detailBase: '/cms/embed/post/post/',
+      },
+      global: {
+        stubs: { RouterLink: RouterLinkStub },
+        mocks: { $t: (key: string) => key },
+      },
+    });
+    const card = wrapper.findComponent(PostCard);
+    expect(card.props('detailBase')).toBe('/cms/embed/post/post/');
+    const firstLink = wrapper.findComponent(RouterLinkStub);
+    expect(firstLink.props('to')).toBe('/cms/embed/post/post/post-1');
   });
 
   it('renders the configured meta fields in the configured order', () => {

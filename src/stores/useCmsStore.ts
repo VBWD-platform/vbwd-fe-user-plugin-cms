@@ -99,6 +99,25 @@ export interface CmsPageWidgetAssignment {
   sort_order: number;
   required_access_level_ids?: string[];
   widget?: CmsWidgetData;
+  /**
+   * Per-page override for THIS page's widget instance. A structured object with
+   * only the keys relevant to the widget type; each is applied OVER the widget
+   * record's own value at render time, for this page only (layout-level
+   * assignments are unaffected). Absent/null → use the widget's values unchanged.
+   *   config:       vue-component field overrides (merged over widget.config)
+   *   content_html: html content override (plain HTML, re-encoded for the renderer)
+   *   source_css:   per-page CSS override (any widget type)
+   *   menu_items:   menu override (replaces widget.menu_items)
+   */
+  config_override?: CmsPageWidgetOverride | null;
+}
+
+/** Structured per-page widget override (see {@link CmsPageWidgetAssignment}). */
+export interface CmsPageWidgetOverride {
+  config?: Record<string, unknown>;
+  content_html?: string;
+  source_css?: string;
+  menu_items?: CmsMenuItemData[];
 }
 
 export interface PaginatedPages {

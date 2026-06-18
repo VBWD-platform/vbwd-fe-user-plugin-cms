@@ -39,7 +39,12 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue';
-import type { CmsLayout, CmsWidgetData, CmsPageWidgetAssignment } from '../stores/useCmsStore';
+import type {
+  CmsLayout,
+  CmsWidgetData,
+  CmsPageWidgetAssignment,
+  CmsPageWidgetOverride,
+} from '../stores/useCmsStore';
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 import { useCmsSpaLinks } from '../composables/useCmsSpaLinks';
 import { useCmsLinkPrefetch } from '../composables/useCmsLinkPrefetch';
@@ -100,10 +105,66 @@ watch(() => props.contentHtml, async () => {
   if (el) runScripts(el);
 });
 
+/**
+ * Encode plain HTML the same way the admin HTML editor + renderer do: the
+ * renderer decodes content_json.content with `decodeURIComponent(escape(atob))`,
+ * so we pair it with `btoa(unescape(encodeURIComponent(html)))`.
+ */
+function encodeWidgetHtml(html: string): string {
+  return btoa(unescape(encodeURIComponent(html)));
+}
+
+/**
+ * Return a NEW widget with the per-page override applied per widget_type. Only
+ * the keys relevant to the type are honoured; an absent/falsy override (or an
+ * unknown type) returns the widget unchanged. The layout-level path never calls
+ * this, so layout assignments are unaffected.
+ */
+function applyPageOverride(
+  widget: CmsWidgetData,
+  override: CmsPageWidgetOverride | null | undefined,
+): CmsWidgetData {
+  if (!override) return widget;
+
+  if (widget.widget_type === 'vue-component') {
+    const merged: CmsWidgetData = {
+      ...widget,
+      config: { ...(widget.config ?? {}), ...(override.config ?? {}) },
+    };
+    if (typeof override.source_css === 'string') merged.source_css = override.source_css;
+    return merged;
+  }
+
+  if (widget.widget_type === 'html') {
+    const merged: CmsWidgetData = { ...widget };
+    if (typeof override.content_html === 'string') {
+      merged.content_json = {
+        ...(widget.content_json ?? {}),
+        content: encodeWidgetHtml(override.content_html),
+      };
+    }
+    if (typeof override.source_css === 'string') merged.source_css = override.source_css;
+    return merged;
+  }
+
+  if (widget.widget_type === 'menu') {
+    const merged: CmsWidgetData = { ...widget };
+    if (Array.isArray(override.menu_items)) merged.menu_items = override.menu_items;
+    if (typeof override.source_css === 'string') merged.source_css = override.source_css;
+    return merged;
+  }
+
+  return widget;
+}
+
 function widgetFor(areaName: string): CmsWidgetData | undefined {
-  // Page-level assignments override layout-level for the same area
+  // Page-level assignments override layout-level for the same area. A page
+  // assignment may also carry its OWN per-page override, applied per widget
+  // type for this page only (the layout-level path below is unaffected).
   const pageAssignment = props.pageAssignments?.find(a => a.area_name === areaName);
-  if (pageAssignment?.widget) return pageAssignment.widget as CmsWidgetData;
+  if (pageAssignment?.widget) {
+    return applyPageOverride(pageAssignment.widget as CmsWidgetData, pageAssignment.config_override);
+  }
   const layoutAssignment = props.layout.assignments?.find(a => a.area_name === areaName);
   return layoutAssignment?.widget as CmsWidgetData | undefined;
 }
