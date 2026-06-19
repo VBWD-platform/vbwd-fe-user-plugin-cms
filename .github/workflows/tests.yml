@@ -27,6 +27,15 @@ jobs:
       - name: Overlay plugin source
         run: cp -r plugin-src/. vbwd-fe-user/plugins/cms/
 
+      - name: Clone landing1 peer plugin
+        # src/components/NativePricingPlans.vue imports the sibling
+        # ../../../landing1/Landing1View.vue. fe-user gitignores every plugin
+        # dir, so the checkout has none — clone the peer so the import resolves.
+        run: |
+          git clone --depth=1 \
+            https://github.com/VBWD-platform/vbwd-fe-user-plugin-landing1.git \
+            vbwd-fe-user/plugins/landing1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
