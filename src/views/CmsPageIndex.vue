@@ -43,7 +43,7 @@
         class="cms-index__item"
       >
         <router-link :to="{ name: 'cms-page', params: { slug: page.slug } }">
-          <strong>{{ page.name }}</strong>
+          <strong>{{ page.title ?? page.name }}</strong>
         </router-link>
         <p
           v-if="page.meta_description"

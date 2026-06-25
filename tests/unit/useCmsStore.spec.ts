@@ -65,6 +65,61 @@ describe('useCmsStore — S55.3 multi-area data passthrough', () => {
     expect(store.currentPage?.page_assignments).toEqual(pageAssignments);
   });
 
+  it('fetchPages hits the unified /cms/posts list (type=page, term_type=category) — not legacy /cms/pages', async () => {
+    const listResult = {
+      items: [
+        { id: 'p1', slug: 'about', title: 'About', type: 'page' },
+        { id: 'p2', slug: 'team', title: 'Team', type: 'page' },
+      ],
+      total: 2,
+      page: 1,
+      per_page: 20,
+      pages: 1,
+    };
+
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts') return listResult;
+      return {};
+    });
+
+    const store = useCmsStore();
+    await store.fetchPages({ category: 'company', page: 1, per_page: 20 });
+
+    const calledUrls = getMock.mock.calls.map((call) => call[0]);
+    expect(calledUrls).toContain('/cms/posts');
+    expect(calledUrls).not.toContain('/cms/pages');
+
+    const [, config] = getMock.mock.calls[0];
+    expect(config).toEqual({
+      params: {
+        type: 'page',
+        term_type: 'category',
+        term_slug: 'company',
+        page: 1,
+        per_page: 20,
+      },
+    });
+
+    expect(store.pageList).toEqual(listResult);
+    expect(store.loading).toBe(false);
+  });
+
+  it('fetchPages omits term_slug when no category is given', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/cms/posts') return { items: [], total: 0, page: 1, per_page: 20, pages: 0 };
+      return {};
+    });
+
+    const store = useCmsStore();
+    await store.fetchPages();
+
+    const [url, config] = getMock.mock.calls[0];
+    expect(url).toBe('/cms/posts');
+    expect(config.params.type).toBe('page');
+    expect(config.params.term_type).toBe('category');
+    expect(config.params.term_slug).toBeUndefined();
+  });
+
   it('leaves content_blocks/page_assignments undefined when the endpoint omits them', async () => {
     getMock.mockImplementation(async (url: string) => {
       if (url === '/cms/posts/plain') {

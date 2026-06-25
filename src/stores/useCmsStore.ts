@@ -225,7 +225,18 @@ export const useCmsStore = defineStore('cms-user', {
       this.loading = true;
       this.error = null;
       try {
-        const res = await api.get<any>('/cms/pages', { params });
+        // Unified engine: pages live in `cms_post` as `type=page`, filtered by
+        // `cms_term` categories via `term_type=category` + `term_slug`. Mirrors
+        // `usePosts.byTerm()`. Replaces the removed legacy `GET /cms/pages`.
+        const res = await api.get<PaginatedPages>('/cms/posts', {
+          params: {
+            type: 'page',
+            term_type: 'category',
+            term_slug: params.category,
+            page: params.page,
+            per_page: params.per_page,
+          },
+        });
         this.pageList = res;
       } catch (e: any) {
         this.error = e?.message ?? 'Failed to load pages';
