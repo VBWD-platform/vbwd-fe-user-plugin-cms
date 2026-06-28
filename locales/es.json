@@ -13,7 +13,36 @@
     "accessDenied": "Acceso denegado",
     "loginRequired": "Inicio de sesión requerido",
     "loginToView": "Inicie sesión para ver esta página.",
-    "upgradePlan": "Actualice su plan para acceder a esta página."
+    "upgradePlan": "Actualice su plan para acceder a esta página.",
+    "cookieConsent": {
+      "title": "Valoramos su privacidad",
+      "summary": "Usamos cookies para que el sitio funcione y, con su consentimiento, para medirlo y mejorarlo. Puede aceptar todo, rechazar todo o elegir por finalidad.",
+      "privacyLink": "Política de privacidad",
+      "acceptAll": "Aceptar todo",
+      "rejectAll": "Rechazar todo",
+      "customize": "Personalizar",
+      "customizeTitle": "Elija sus preferencias de cookies",
+      "save": "Guardar mis elecciones",
+      "settings": "Configuración de cookies",
+      "categories": {
+        "necessary": {
+          "name": "Estrictamente necesarias",
+          "purpose": "Necesarias para el funcionamiento del sitio: inicio de sesión, carrito y pago. Siempre activas."
+        },
+        "preferences": {
+          "name": "Preferencias",
+          "purpose": "Recuerdan opciones como el idioma o la región para personalizar su experiencia."
+        },
+        "statistics": {
+          "name": "Estadísticas",
+          "purpose": "Nos ayudan a entender cómo usan el sitio los visitantes mediante analíticas anónimas."
+        },
+        "marketing": {
+          "name": "Marketing",
+          "purpose": "Se usan para mostrar y medir publicidad relevante."
+        }
+      }
+    }
   },
   "contactForm": {
     "submit": "Enviar mensaje",

@@ -76,6 +76,12 @@ export const cmsPlugin: IPlugin = {
     import('./src/components/CustomCodeWidget.vue').then((m) => {
       registerCmsVueComponent('CustomCode', m.default);
     });
+    // S87 — GDPR/DSGVO Cookie Consent widget. An admin drops it into a layout
+    // area; the component Teleports a full-screen consent overlay to <body> on
+    // first visit and drives Google Consent Mode v2 (placement = mount trigger).
+    import('./src/components/CookieConsent.vue').then((m) => {
+      registerCmsVueComponent('CookieConsent', m.default);
+    });
 
     // S47.3 — built-in `richtext` content-type renderer (placement: inline).
     // A post with no blocks renders its content_html as one implicit richtext

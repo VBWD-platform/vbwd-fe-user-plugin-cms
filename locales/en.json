@@ -32,6 +32,35 @@
     "addonCatalog": {
       "loading": "Loading add-ons…",
       "empty": "No add-ons available."
+    },
+    "cookieConsent": {
+      "title": "We value your privacy",
+      "summary": "We use cookies to run the site and, with your consent, to measure and improve it. You can accept all, reject all, or choose per purpose.",
+      "privacyLink": "Privacy policy",
+      "acceptAll": "Accept all",
+      "rejectAll": "Reject all",
+      "customize": "Customize",
+      "customizeTitle": "Choose your cookie preferences",
+      "save": "Save my choices",
+      "settings": "Cookie settings",
+      "categories": {
+        "necessary": {
+          "name": "Strictly necessary",
+          "purpose": "Required for the site to work — login, cart and checkout. Always on."
+        },
+        "preferences": {
+          "name": "Preferences",
+          "purpose": "Remember choices such as language or region to personalise your experience."
+        },
+        "statistics": {
+          "name": "Statistics",
+          "purpose": "Help us understand how visitors use the site through anonymous analytics."
+        },
+        "marketing": {
+          "name": "Marketing",
+          "purpose": "Used to deliver and measure relevant advertising."
+        }
+      }
     }
   },
   "contactForm": {
