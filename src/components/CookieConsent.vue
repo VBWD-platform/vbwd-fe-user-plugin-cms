@@ -5,7 +5,9 @@
       v-if="shouldShowDialog"
       ref="dialogEl"
       class="cookie-consent__backdrop"
-      :class="{ 'cookie-consent__backdrop--banner': mode === 'banner' }"
+      :class="{ 'cookie-consent__backdrop--bottom': position === 'bottom' }"
+      :style="backdropStyle"
+      data-testid="cookie-consent-backdrop"
     >
       <div
         class="cookie-consent"
@@ -30,6 +32,14 @@
               class="cookie-consent__policy-link"
               data-testid="cookie-policy-link"
             >{{ t('cms.cookieConsent.privacyLink') }}</a>
+          </p>
+          <!-- Optional admin-configured extra copy (e.g. a regional note). -->
+          <p
+            v-if="additionalText"
+            class="cookie-consent__additional"
+            data-testid="cookie-additional-text"
+          >
+            {{ additionalText }}
           </p>
           <div class="cookie-consent__actions">
             <button
@@ -156,9 +166,29 @@ const consentVersion = computed(
 const privacyPolicyUrl = computed(
   () => (props.config?.privacy_policy_url as string | undefined) || '/privacy',
 );
-const mode = computed(
-  () => (props.config?.mode as string | undefined) || 'modal',
+// Display position: centred popup or anchored bottom bar. Falls back to the
+// legacy `mode` key ('banner' ⇒ bottom) for older saved records.
+const position = computed<'center' | 'bottom'>(() => {
+  const explicit = props.config?.position as string | undefined;
+  if (explicit === 'bottom' || explicit === 'center') return explicit;
+  return props.config?.mode === 'banner' ? 'bottom' : 'center';
+});
+
+// Optional extra paragraph shown under the summary.
+const additionalText = computed(
+  () => (props.config?.additional_text as string | undefined) || '',
 );
+
+// "Blend the site" — the dim/backdrop opacity over the page (0 = none, 1 = black).
+const backdropOpacity = computed(() => {
+  const raw = Number(props.config?.backdrop_opacity ?? 0.55);
+  if (Number.isNaN(raw)) return 0.55;
+  return Math.min(1, Math.max(0, raw));
+});
+const backdropStyle = computed(() => ({
+  background: `rgba(0, 0, 0, ${backdropOpacity.value})`,
+}));
+
 const showSettingsButton = computed(
   () => props.config?.show_settings_button !== false,
 );
@@ -312,13 +342,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.55);
+  /* background (the "blend" opacity) is bound inline from config.backdrop_opacity */
 }
 
-.cookie-consent__backdrop--banner {
+/* Bottom position: anchor the dialog to the bottom edge, full-width-ish bar. */
+.cookie-consent__backdrop--bottom {
   align-items: flex-end;
-  background: transparent;
-  pointer-events: none;
+}
+
+.cookie-consent__backdrop--bottom .cookie-consent {
+  width: min(960px, 100%);
 }
 
 .cookie-consent {
@@ -345,6 +378,13 @@ onUnmounted(() => {
   margin: 0 0 1.25rem;
   font-size: 0.95rem;
   line-height: 1.5;
+}
+
+.cookie-consent__additional {
+  margin: -0.5rem 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  opacity: 0.85;
 }
 
 .cookie-consent__policy-link {

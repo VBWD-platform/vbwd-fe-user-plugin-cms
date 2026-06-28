@@ -155,6 +155,46 @@ describe('CookieConsent — layer 2 (customize)', () => {
   });
 });
 
+describe('CookieConsent — configurable presentation', () => {
+  it('centres the popup by default (no --bottom modifier)', async () => {
+    await mountWidget();
+    const backdrop = byId('cookie-consent-backdrop')!;
+    expect(backdrop.className).not.toContain('cookie-consent__backdrop--bottom');
+  });
+
+  it('anchors to the bottom area when position = bottom', async () => {
+    await mountWidget({ ...CONFIG, position: 'bottom' });
+    expect(byId('cookie-consent-backdrop')!.className).toContain('cookie-consent__backdrop--bottom');
+  });
+
+  it('falls back to bottom for a legacy mode = banner record', async () => {
+    await mountWidget({ ...CONFIG, position: undefined, mode: 'banner' });
+    expect(byId('cookie-consent-backdrop')!.className).toContain('cookie-consent__backdrop--bottom');
+  });
+
+  it('renders the additional text when configured', async () => {
+    await mountWidget({ ...CONFIG, additional_text: 'This site serves the EU.' });
+    const extra = byId('cookie-additional-text');
+    expect(extra).not.toBeNull();
+    expect(extra!.textContent).toContain('This site serves the EU.');
+  });
+
+  it('omits the additional text element when empty', async () => {
+    await mountWidget({ ...CONFIG, additional_text: '' });
+    expect(byId('cookie-additional-text')).toBeNull();
+  });
+
+  it('applies the backdrop blend opacity from config', async () => {
+    await mountWidget({ ...CONFIG, backdrop_opacity: 0.2 });
+    expect(byId('cookie-consent-backdrop')!.style.background).toBe('rgba(0, 0, 0, 0.2)');
+  });
+
+  it('clamps an out-of-range backdrop opacity', async () => {
+    await mountWidget({ ...CONFIG, backdrop_opacity: 5 });
+    expect(byId('cookie-consent-backdrop')!.style.background).toBe('rgba(0, 0, 0, 1)');
+  });
+});
+
 describe('CookieConsent — withdraw / re-open', () => {
   it('the settings button re-opens the dialog after a decision', async () => {
     await mountWidget();
