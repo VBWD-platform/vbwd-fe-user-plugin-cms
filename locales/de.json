@@ -42,6 +42,13 @@
           "purpose": "Dient der Auslieferung und Messung relevanter Werbung."
         }
       }
+    },
+    "postList": {
+      "empty": "Noch keine Beiträge."
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "Per RSS abonnieren"
     }
   },
   "contactForm": {

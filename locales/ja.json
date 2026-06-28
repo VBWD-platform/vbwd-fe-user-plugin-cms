@@ -13,7 +13,14 @@
     "accessDenied": "アクセスが拒否されました",
     "loginRequired": "ログインが必要です",
     "loginToView": "このページを表示するにはログインしてください。",
-    "upgradePlan": "このページにアクセスするにはプランをアップグレードしてください。"
+    "upgradePlan": "このページにアクセスするにはプランをアップグレードしてください。",
+    "postList": {
+      "empty": "まだ投稿がありません。"
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "RSSで購読"
+    }
   },
   "contactForm": {
     "submit": "メッセージを送信",

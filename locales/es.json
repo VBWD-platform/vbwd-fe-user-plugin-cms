@@ -42,6 +42,13 @@
           "purpose": "Se usan para mostrar y medir publicidad relevante."
         }
       }
+    },
+    "postList": {
+      "empty": "Aún no hay publicaciones."
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "Suscribirse por RSS"
     }
   },
   "contactForm": {

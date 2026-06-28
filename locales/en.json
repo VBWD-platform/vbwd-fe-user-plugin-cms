@@ -61,6 +61,13 @@
           "purpose": "Used to deliver and measure relevant advertising."
         }
       }
+    },
+    "postList": {
+      "empty": "No posts yet."
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "Subscribe via RSS"
     }
   },
   "contactForm": {

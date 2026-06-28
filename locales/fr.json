@@ -42,6 +42,13 @@
           "purpose": "Utilisés pour diffuser et mesurer des publicités pertinentes."
         }
       }
+    },
+    "postList": {
+      "empty": "Aucun article pour le moment."
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "S'abonner via RSS"
     }
   },
   "contactForm": {

@@ -13,7 +13,14 @@
     "accessDenied": "访问被拒绝",
     "loginRequired": "需要登录",
     "loginToView": "请登录以查看此页面。",
-    "upgradePlan": "请升级您的方案以访问此页面。"
+    "upgradePlan": "请升级您的方案以访问此页面。",
+    "postList": {
+      "empty": "暂无文章。"
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "通过 RSS 订阅"
+    }
   },
   "contactForm": {
     "submit": "发送消息",

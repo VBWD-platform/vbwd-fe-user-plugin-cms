@@ -13,7 +13,14 @@
     "accessDenied": "ปฏิเสธการเข้าถึง",
     "loginRequired": "ต้องเข้าสู่ระบบ",
     "loginToView": "เข้าสู่ระบบเพื่อดูหน้านี้",
-    "upgradePlan": "อัปเกรดแผนของคุณเพื่อเข้าถึงหน้านี้"
+    "upgradePlan": "อัปเกรดแผนของคุณเพื่อเข้าถึงหน้านี้",
+    "postList": {
+      "empty": "ยังไม่มีโพสต์"
+    },
+    "rss": {
+      "label": "RSS",
+      "subscribe": "สมัครรับผ่าน RSS"
+    }
   },
   "contactForm": {
     "submit": "ส่งข้อความ",
