@@ -130,18 +130,20 @@ const crumbs = computed<Crumb[]>(() => {
 </script>
 
 <style>
+/* S109: theme-aware via --vbwd-* roles; light fallbacks == original values so
+   the default theme is visually unchanged. */
 .cms-breadcrumb {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--vbwd-text-muted, #6b7280);
   padding: 8px 0 16px;
 }
 .cms-breadcrumb a,
 .cms-breadcrumb__link {
-  color: #3498db;
+  color: var(--vbwd-color-primary, #3498db);
   text-decoration: none;
 }
 .cms-breadcrumb a:hover,
@@ -149,11 +151,11 @@ const crumbs = computed<Crumb[]>(() => {
   text-decoration: underline;
 }
 .cms-breadcrumb__separator {
-  color: #9ca3af;
+  color: var(--vbwd-text-muted, #9ca3af);
   user-select: none;
 }
 .cms-breadcrumb__current {
-  color: #374151;
+  color: var(--vbwd-text-body, #374151);
   font-weight: 500;
 }
 </style>
