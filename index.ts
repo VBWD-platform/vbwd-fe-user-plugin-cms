@@ -20,7 +20,7 @@ import zh from './locales/zh.json';
 
 export const cmsPlugin: IPlugin = {
   name: 'cms',
-  version: '1.0.0',
+  version: '26.6',
   description: 'CMS Pages — public-facing page and category browsing',
   dependencies: ['landing1'],
   _active: false,
