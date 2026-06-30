@@ -401,7 +401,7 @@ async function handleSubmit() {
   align-self: flex-start;
   padding: 12px 28px;
   background: var(--vbwd-color-primary, #3498db);
-  color: #fff;
+  color: var(--color-accent-fg, #fff);
   border: none;
   border-radius: 6px;
   font-size: 1rem;

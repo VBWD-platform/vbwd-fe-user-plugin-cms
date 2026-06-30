@@ -394,7 +394,7 @@ function nextSlide() {
 .cms-slide__img { width: 100%; height: auto; display: block; }
 .cms-slide__caption { text-align: center; font-size: 0.875rem; padding: 0.5rem; opacity: 0.7; }
 .cms-slide__prev,
-.cms-slide__next { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.4); color: #fff; border: none; font-size: 2rem; cursor: pointer; padding: 0.25rem 0.75rem; border-radius: 3px; line-height: 1; }
+.cms-slide__next { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.4); color: var(--color-overlay-fg, #fff); border: none; font-size: 2rem; cursor: pointer; padding: 0.25rem 0.75rem; border-radius: 3px; line-height: 1; }
 .cms-slide__prev { left: 0.5rem; }
 .cms-slide__next { right: 0.5rem; }
 </style>

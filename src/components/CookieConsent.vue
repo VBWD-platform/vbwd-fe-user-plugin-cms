@@ -407,7 +407,7 @@ onUnmounted(() => {
   border: 1px solid var(--vbwd-color-primary, #3498db);
   border-radius: 6px;
   background: var(--vbwd-color-primary, #3498db);
-  color: #fff;
+  color: var(--color-accent-fg, #fff);
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;

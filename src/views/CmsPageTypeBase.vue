@@ -223,8 +223,8 @@ onUnmounted(() => {
 <style scoped>
 .cms-page__title { margin-bottom: 1.5rem; }
 .cms-page__body :deep(img) { max-width: 100%; height: auto; }
-.cms-page__body :deep(pre) { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; }
-.cms-page__body :deep(blockquote) { border-left: 4px solid #ddd; margin: 0; padding-left: 1rem; color: #666; }
+.cms-page__body :deep(pre) { background: var(--color-surface-soft, var(--color-code-bg, #f5f5f5)); color: var(--color-text, inherit); padding: 1rem; border-radius: 4px; overflow-x: auto; }
+.cms-page__body :deep(blockquote) { border-left: 4px solid var(--color-border, #ddd); margin: 0; padding-left: 1rem; color: var(--color-text-muted, #666); }
 </style>
 
 <!-- Non-scoped: content is injected via v-html (scoped styles never reach it),

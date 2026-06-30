@@ -113,21 +113,21 @@ onMounted(() => {
 .cms-index__categories { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
 .cms-index__cat-btn {
   padding: 0.35rem 0.9rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border, #ccc);
   border-radius: 20px;
   background: transparent;
   cursor: pointer;
   transition: background 0.15s;
 }
 .cms-index__cat-btn.active,
-.cms-index__cat-btn:hover { background: var(--color-primary, #3b82f6); color: #fff; border-color: transparent; }
+.cms-index__cat-btn:hover { background: var(--color-primary, #3b82f6); color: var(--color-accent-fg, #fff); border-color: transparent; }
 .cms-index__list { list-style: none; padding: 0; }
-.cms-index__item { padding: 1rem 0; border-bottom: 1px solid #eee; }
+.cms-index__item { padding: 1rem 0; border-bottom: 1px solid var(--color-border, #eee); }
 .cms-index__item a { text-decoration: none; color: inherit; }
 .cms-index__item a:hover { text-decoration: underline; }
-.cms-index__desc { margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; }
+.cms-index__desc { margin: 0.25rem 0 0; color: var(--color-text-muted, #666); font-size: 0.9rem; }
 .cms-index__loading,
-.cms-index__empty { color: #888; padding: 2rem 0; }
+.cms-index__empty { color: var(--color-text-muted, #888); padding: 2rem 0; }
 .cms-index__pagination { display: flex; align-items: center; gap: 1rem; margin-top: 1.5rem; }
 .cms-index__pagination button { padding: 0.4rem 0.8rem; cursor: pointer; }
 .cms-index__pagination button:disabled { opacity: 0.4; cursor: default; }
