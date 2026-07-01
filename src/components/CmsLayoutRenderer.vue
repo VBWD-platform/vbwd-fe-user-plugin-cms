@@ -29,7 +29,9 @@
         v-else-if="widgetFor(area.name)"
         :class="`cms-area cms-area--${area.type}`"
       >
-        <CmsWidgetRenderer :widget="widgetFor(area.name)!" />
+        <div class="container">
+          <CmsWidgetRenderer :widget="widgetFor(area.name)!" />
+        </div>
       </div>
 
       <!-- Declared area with no widget assignment: skip silently -->
