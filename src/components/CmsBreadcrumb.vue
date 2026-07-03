@@ -44,6 +44,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCmsStore } from '../stores/useCmsStore';
+import { getBreadcrumbLabel } from '../composables/useBreadcrumbLabel';
 
 interface BreadcrumbConfig {
   separator?: string;
@@ -109,7 +110,7 @@ const crumbs = computed<Crumb[]>(() => {
   const categoryLabel = (cfg.value.category_label as string | undefined) ?? '';
   const categorySlug = (cfg.value.category_slug as string | undefined) ?? '';
 
-  return parts
+  const built = parts
     .map((part, idx): Crumb | null => {
       if (idx === 0) {
         if (!showCategory) return null;
@@ -126,6 +127,17 @@ const crumbs = computed<Crumb[]>(() => {
       };
     })
     .filter((c): c is Crumb => c !== null);
+
+  // Generic seam: a page/widget may override the CURRENT crumb's display label
+  // for this exact route path (e.g. show a real entity name instead of the
+  // slug-derived label). No override → default behaviour is unchanged.
+  const overrideLabel = getBreadcrumbLabel(route.path);
+  if (overrideLabel) {
+    const current = built.find((crumb) => crumb.current);
+    if (current) current.label = overrideLabel;
+  }
+
+  return built;
 });
 </script>
 
