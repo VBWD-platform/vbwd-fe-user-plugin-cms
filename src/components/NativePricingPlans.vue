@@ -2,6 +2,14 @@
   <Landing1View
     :category="category"
     :plan-slugs="planSlugs"
+    :heading="heading"
+    :subtitle="subtitle"
+    :theme="theme"
+    :image-url="imageUrl"
+    :features="features"
+    :highlight-slug="highlightSlug"
+    :badge="badge"
+    :cta-label="ctaLabel"
   />
 </template>
 
@@ -26,6 +34,23 @@ const planSlugs = computed(() => {
   if (mode.value !== 'plans') return undefined;
   const v = props.config?.plan_slugs;
   return Array.isArray(v) ? (v as string[]) : undefined;
+});
+
+function str(key: string): string | undefined {
+  const v = props.config?.[key];
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
+
+const heading = computed(() => str('heading'));
+const subtitle = computed(() => str('subtitle'));
+const theme = computed(() => str('theme'));
+const imageUrl = computed(() => str('image_url'));
+const highlightSlug = computed(() => str('highlight_slug'));
+const badge = computed(() => str('highlight_badge'));
+const ctaLabel = computed(() => str('cta_label'));
+const features = computed<string[] | undefined>(() => {
+  const v = props.config?.features;
+  return Array.isArray(v) ? (v as unknown[]).map((x) => String(x)) : undefined;
 });
 
 let styleEl: HTMLStyleElement | null = null;

@@ -60,6 +60,7 @@ import type { CmsPageItem, CmsLayout } from '../stores/useCmsStore';
 import { useCmsStore } from '../stores/useCmsStore';
 import CmsLayoutRenderer from '../components/CmsLayoutRenderer.vue';
 import { injectSeoMeta } from '../composables/useSeoHandoff';
+import { buildHeadSnippetNodes } from '../utils/headSnippet';
 
 const props = defineProps<{
   page: CmsPageItem;
@@ -212,11 +213,49 @@ watch(
 
 watch(() => store.currentStyleCss, applyEffectiveStyle);
 
+// ── Layout <head> snippet injection ─────────────────────────────────────────
+// The layout's raw `head_html` (scripts, styles, meta/link tags) is injected
+// before </head> on every page using this layout. A <script> injected as parsed
+// markup would never execute, so buildHeadSnippetNodes rebuilds script elements
+// programmatically (mirrors the CustomCode widget). We track exactly the nodes
+// we appended and remove them on cleanup / re-inject, keyed by the raw string.
+
+// The nodes appended to <head>, so cleanup removes exactly our own.
+let injectedHeadNodes: Node[] = [];
+// The head_html currently injected — idempotency guard against re-injecting the
+// same blob on an unrelated re-render.
+let injectedHeadHtml: string | null = null;
+
+function clearHeadSnippet(): void {
+  for (const node of injectedHeadNodes) {
+    if (node.parentNode) node.parentNode.removeChild(node);
+  }
+  injectedHeadNodes = [];
+}
+
+function applyHeadSnippet(rawHtml: string | null): void {
+  if (rawHtml === injectedHeadHtml) return; // already injected — no-op
+  clearHeadSnippet();
+  injectedHeadNodes = buildHeadSnippetNodes(document, rawHtml);
+  for (const node of injectedHeadNodes) {
+    document.head.appendChild(node);
+  }
+  injectedHeadHtml = rawHtml;
+}
+
+watch(
+  () => props.layout?.head_html ?? null,
+  (rawHtml) => applyHeadSnippet(rawHtml),
+  { immediate: true },
+);
+
 onUnmounted(() => {
   // SEO tags are keyed by `data-seo="ssr"` and updated in place by the next
   // page, so they are intentionally NOT removed here. Only the page-scoped
-  // style tag is cleaned up.
+  // style tag and the layout head snippet are cleaned up.
   if (styleTag) { styleTag.remove(); styleTag = null; }
+  clearHeadSnippet();
+  injectedHeadHtml = null;
 });
 </script>
 

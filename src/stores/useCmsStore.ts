@@ -170,6 +170,7 @@ export interface CmsLayout {
   name: string;
   areas: CmsAreaDefinition[];
   assignments: CmsWidgetAssignment[];
+  head_html?: string | null;
 }
 
 interface CachedCmsPage {
