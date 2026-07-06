@@ -124,6 +124,31 @@ describe('cmsMiddlewareRoutingGuard', () => {
       expect(await guard(loc('/anything', 'cms-page'), FROM)).toBeUndefined();
     });
 
+    it('path_exact matches the exact path only, not sibling prefixes (S120)', async () => {
+      const api = makeApi([
+        { name: 'e', is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: '/home', target_slug: '/', redirect_code: 301,
+          is_rewrite: false, layer: 'middleware' },
+      ]);
+      const guard = createCmsMiddlewareRoutingGuard(api);
+
+      expect(await guard(loc('/home', 'cms-page'), FROM)).toBe('/');
+      // must NOT catch the /home2 demo page (the reason path_exact exists)
+      expect(await guard(loc('/home2', 'cms-page'), FROM)).toBeUndefined();
+      expect(await guard(loc('/homepage', 'cms-page'), FROM)).toBeUndefined();
+    });
+
+    it('path_exact with empty match_value never matches', async () => {
+      const api = makeApi([
+        { name: 'e', is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: '', target_slug: '/', redirect_code: 301,
+          is_rewrite: false, layer: 'middleware' },
+      ]);
+      const guard = createCmsMiddlewareRoutingGuard(api);
+
+      expect(await guard(loc('/', 'home'), FROM)).toBeUndefined();
+    });
+
     it('cookie matcher matches an exact key=value', async () => {
       Object.defineProperty(document, 'cookie', { writable: true, value: 'vbwd_lang=de' });
       const api = makeApi([

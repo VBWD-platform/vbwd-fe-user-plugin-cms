@@ -115,6 +115,19 @@ export const cmsPlugin: IPlugin = {
       meta: { requiresAuth: false, embed: true },
     });
 
+    // S120 — the canonical homepage. Registered under the name `home` so that,
+    // at factory install time, vue-router's `addRoute` REPLACES the host's `/`
+    // bouncer (also named `home`) with the CMS home renderer. `/` now renders
+    // the home CMS post in place (slug resolved from app-config, default
+    // `index`) — no client redirect to `/home`, and resilient when the
+    // routing-rules fetch fails. Registered before the `/:slug(.+)` catch-all.
+    sdk.addRoute({
+      path: '/',
+      name: 'home',
+      component: () => import('./src/views/CmsHomePage.vue'),
+      meta: { requiresAuth: false, cmsLayout: true },
+    });
+
     sdk.addRoute({
       path: '/:slug(.+)',
       name: 'cms-page',

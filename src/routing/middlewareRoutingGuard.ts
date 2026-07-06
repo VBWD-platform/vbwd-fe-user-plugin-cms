@@ -27,7 +27,7 @@ export interface CmsRoutingRule {
   name: string;
   is_active: boolean;
   priority: number;
-  match_type: 'default' | 'language' | 'ip_range' | 'country' | 'path_prefix' | 'cookie';
+  match_type: 'default' | 'language' | 'ip_range' | 'country' | 'path_prefix' | 'path_exact' | 'cookie';
   match_value: string | null;
   target_slug: string;
   redirect_code: 301 | 302;
@@ -121,6 +121,14 @@ function ruleMatches(rule: CmsRoutingRule, to: IRouteLocation): boolean {
       const value = rule.match_value || '';
       if (!value) return false;
       return to.path.startsWith(value);
+    }
+
+    case 'path_exact': {
+      // Exact-path match for canonical redirects (S120): `/home` and `/index`
+      // 301 to `/`. Unlike path_prefix this does NOT catch siblings like /home2.
+      const value = rule.match_value || '';
+      if (!value) return false;
+      return to.path === value;
     }
 
     case 'cookie': {
