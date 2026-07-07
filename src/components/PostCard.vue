@@ -4,52 +4,113 @@
     :class="`post-card--${mode}`"
     data-testid="post-card"
   >
-    <router-link
-      v-if="leadImageUrl"
-      :to="detailPath"
-      class="post-card__media"
-    >
-      <CmsImage
-        :src="leadImageUrl"
-        :width="leadImageWidth"
-        :height="leadImageHeight"
-        :alt="post.title"
-      />
-    </router-link>
+    <!-- Category (WordPress-archive) mode: content left, thumbnail right (~30%). -->
+    <template v-if="mode === 'category'">
+      <div class="post-card__content">
+        <router-link
+          v-if="categoryName"
+          :to="detailPath"
+          class="post-card__eyebrow"
+          data-testid="post-category"
+        >
+          {{ categoryName }}
+        </router-link>
 
-    <h2 class="post-card__title">
-      <router-link :to="detailPath">
-        {{ post.title }}
+        <h2 class="post-card__title">
+          <router-link :to="detailPath">
+            {{ post.title }}
+          </router-link>
+        </h2>
+
+        <div
+          v-if="dateLabel || metaFields.length"
+          class="post-card__meta"
+          data-testid="post-meta"
+        >
+          <time
+            v-if="dateLabel"
+            class="post-card__meta-item post-card__meta-item--date"
+          >{{ dateLabel }}</time>
+          <span
+            v-for="field in metaFields"
+            :key="field"
+            class="post-card__meta-item"
+            :class="`post-card__meta-item--${field}`"
+          >{{ metaValue(field) }}</span>
+        </div>
+
+        <p
+          v-if="excerptText"
+          class="post-card__excerpt"
+        >
+          {{ excerptText }}
+        </p>
+      </div>
+
+      <router-link
+        v-if="thumbUrl"
+        :to="detailPath"
+        class="post-card__thumb"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <CmsImage
+          :src="thumbUrl"
+          :width="leadImageWidth"
+          :height="leadImageHeight"
+          :alt="post.title"
+        />
       </router-link>
-    </h2>
+    </template>
 
-    <div
-      v-if="metaFields.length"
-      class="post-card__meta"
-      data-testid="post-meta"
-    >
-      <span
-        v-for="field in metaFields"
-        :key="field"
-        class="post-card__meta-item"
-        :class="`post-card__meta-item--${field}`"
-      >{{ metaValue(field) }}</span>
-    </div>
+    <template v-else>
+      <router-link
+        v-if="leadImageUrl"
+        :to="detailPath"
+        class="post-card__media"
+      >
+        <CmsImage
+          :src="leadImageUrl"
+          :width="leadImageWidth"
+          :height="leadImageHeight"
+          :alt="post.title"
+        />
+      </router-link>
 
-    <p
-      v-if="showExcerpt && post.excerpt"
-      class="post-card__excerpt"
-    >
-      {{ post.excerpt }}
-    </p>
+      <h2 class="post-card__title">
+        <router-link :to="detailPath">
+          {{ post.title }}
+        </router-link>
+      </h2>
 
-    <!-- eslint-disable vue/no-v-html -->
-    <div
-      v-if="showFull && post.content_html"
-      class="post-card__body"
-      v-html="post.content_html"
-    />
-    <!-- eslint-enable vue/no-v-html -->
+      <div
+        v-if="metaFields.length"
+        class="post-card__meta"
+        data-testid="post-meta"
+      >
+        <span
+          v-for="field in metaFields"
+          :key="field"
+          class="post-card__meta-item"
+          :class="`post-card__meta-item--${field}`"
+        >{{ metaValue(field) }}</span>
+      </div>
+
+      <p
+        v-if="showExcerpt && post.excerpt"
+        class="post-card__excerpt"
+      >
+        {{ post.excerpt }}
+      </p>
+
+      <!-- eslint-disable vue/no-v-html -->
+      <div
+        v-if="showFull && post.content_html"
+        class="post-card__body"
+        v-html="post.content_html"
+      />
+      <!-- eslint-enable vue/no-v-html -->
+    </template>
   </article>
 </template>
 
@@ -59,7 +120,13 @@ import CmsImage from './CmsImage.vue';
 import { timeAgo } from '../utils/timeAgo';
 import type { PostSummary } from '../composables/usePosts';
 
-export type PostListMode = 'titles' | 'excerpt' | 'full' | 'gallery' | 'video';
+export type PostListMode =
+  | 'titles'
+  | 'excerpt'
+  | 'full'
+  | 'gallery'
+  | 'video'
+  | 'category';
 export type PostMetaField =
   | 'author'
   | 'time_ago'
@@ -103,6 +170,33 @@ const detailPath = computed(() =>
   props.detailBase
     ? `${props.detailBase}${props.post.slug}`
     : `/${props.post.slug}`,
+);
+
+// Category-mode fields (additive; degrade gracefully when absent).
+const categoryName = computed<string>(() => {
+  const primary = props.post.primary_category as { name?: string } | null | undefined;
+  return primary?.name ?? '';
+});
+const dateLabel = computed<string>(() =>
+  props.post.published_at
+    ? new Date(props.post.published_at).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : '',
+);
+const excerptText = computed<string>(
+  () =>
+    (props.post.excerpt_effective as string | undefined) ??
+    props.post.excerpt ??
+    '',
+);
+const thumbUrl = computed<string | null>(
+  () =>
+    (props.post.featured_image_url as string | undefined) ??
+    props.post.og_image_url ??
+    null,
 );
 
 const leadImageUrl = computed(() => props.post.og_image_url ?? null);
@@ -180,5 +274,98 @@ function metaValue(field: PostMetaField): string {
 .post-card__body :deep(img) {
   max-width: 100%;
   height: auto;
+}
+
+/* ── Category (WordPress-archive) mode ─────────────────────────────────── */
+.post-card--category {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+  margin: 0 0 1.25rem;
+  padding: 1.25rem 1.375rem;
+  background: var(--vbwd-surface, var(--color-surface, #fff));
+  border: 1px solid var(--vbwd-border, var(--color-border, #e5e9f0));
+  border-radius: var(--vbwd-radius-card, 12px);
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.post-card--category:hover {
+  border-color: var(--vbwd-primary, var(--color-primary, #4f46e5));
+  box-shadow: 0 6px 20px -8px rgba(15, 23, 42, 0.18);
+  transform: translateY(-1px);
+}
+.post-card__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.post-card__eyebrow {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--vbwd-primary, var(--color-primary, #4f46e5));
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+}
+.post-card__eyebrow:hover {
+  text-decoration: underline;
+}
+.post-card--category .post-card__title {
+  font-size: 1.4rem;
+  line-height: 1.25;
+  margin: 0 0 0.45rem;
+  letter-spacing: -0.01em;
+}
+.post-card--category .post-card__meta {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--vbwd-muted, var(--color-text-muted, #64748b));
+}
+.post-card--category .post-card__excerpt {
+  margin: 0;
+  color: var(--vbwd-muted, var(--color-text, #475569));
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.post-card__thumb {
+  flex: 0 0 30%;
+  max-width: 30%;
+  align-self: stretch;
+  min-height: 8.5rem;
+  border-radius: calc(var(--vbwd-radius-card, 12px) - 4px);
+  overflow: hidden;
+  background: var(--vbwd-table-head-bg, #f1f5f9);
+  display: block;
+}
+.post-card__thumb :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.post-card__thumb--empty {
+  background: linear-gradient(
+    135deg,
+    var(--vbwd-table-head-bg, #eef2f7),
+    var(--vbwd-surface, #f8fafc)
+  );
+}
+
+@media (max-width: 640px) {
+  .post-card--category {
+    flex-direction: column-reverse;
+    gap: 1rem;
+  }
+  .post-card__thumb {
+    flex-basis: auto;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
 }
 </style>

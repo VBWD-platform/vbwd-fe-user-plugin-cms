@@ -1,12 +1,25 @@
 <template>
-  <!-- Vue component widget: rendered from registry by component name -->
-  <component
-    :is="resolvedVueComponent"
+  <!-- Vue component widget: rendered from registry by component name.
+       Wrapped so it (a) carries a cms-widget--<slug> hook and (b) injects the
+       widget's own source_css — same contract as the html/menu widgets — so
+       operators can style a vue widget from the editor's CSS tab. -->
+  <div
     v-if="widget.widget_type === 'vue-component' && resolvedVueComponent"
-    v-bind="(widget.content_json as any)?.props || {}"
-    :config="{ ...(widget.config ?? {}), widget_slug: widget.slug }"
     class="cms-widget cms-widget--vue"
-  />
+    :class="widget.slug ? `cms-widget--${widget.slug}` : ''"
+  >
+    <component
+      :is="'style'"
+      v-if="widgetCss"
+    >
+      {{ widgetCss }}
+    </component>
+    <component
+      :is="resolvedVueComponent"
+      v-bind="(widget.content_json as any)?.props || {}"
+      :config="{ ...(widget.config ?? {}), widget_slug: widget.slug }"
+    />
+  </div>
   <div
     v-else-if="widget.widget_type === 'vue-component'"
     class="cms-widget cms-widget--vue cms-widget--vue-missing"

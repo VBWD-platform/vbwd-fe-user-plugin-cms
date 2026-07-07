@@ -84,4 +84,96 @@ describe('PostCard', () => {
     expect(meta.exists()).toBe(true);
     expect(meta.text().toLowerCase()).toMatch(/hour|ago/);
   });
+
+  it('titles mode renders the flat structure (no category two-column wrapper)', () => {
+    const wrapper = mountCard(makePost(), { mode: 'titles' });
+    expect(wrapper.classes()).toContain('post-card--titles');
+    expect(wrapper.find('.post-card__content').exists()).toBe(false);
+    expect(wrapper.find('.post-card__eyebrow').exists()).toBe(false);
+    expect(wrapper.find('.post-card__thumb').exists()).toBe(false);
+  });
+});
+
+describe('PostCard — category (WordPress-archive) mode', () => {
+  it('renders the post-card--category two-column layout with eyebrow, date and excerpt', () => {
+    const wrapper = mountCard(
+      makePost({
+        primary_category: { name: 'News' },
+        published_at: '2026-06-01T10:00:00+00:00',
+        excerpt_effective: 'Curated summary.',
+        excerpt: 'Raw excerpt.',
+      }),
+      { mode: 'category' },
+    );
+
+    expect(wrapper.classes()).toContain('post-card--category');
+    expect(wrapper.find('.post-card__content').exists()).toBe(true);
+
+    const eyebrow = wrapper.find('[data-testid="post-category"]');
+    expect(eyebrow.exists()).toBe(true);
+    expect(eyebrow.text()).toBe('News');
+
+    const time = wrapper.find('.post-card__meta-item--date');
+    expect(time.exists()).toBe(true);
+    expect(time.element.tagName.toLowerCase()).toBe('time');
+    expect(time.text()).toMatch(/2026/);
+
+    // excerpt_effective is preferred over the raw excerpt.
+    const excerpt = wrapper.find('.post-card__excerpt');
+    expect(excerpt.exists()).toBe(true);
+    expect(excerpt.text()).toBe('Curated summary.');
+  });
+
+  it('falls back to excerpt when excerpt_effective is absent', () => {
+    const wrapper = mountCard(
+      makePost({ excerpt_effective: undefined, excerpt: 'Raw excerpt.' }),
+      { mode: 'category' },
+    );
+    expect(wrapper.find('.post-card__excerpt').text()).toBe('Raw excerpt.');
+  });
+
+  it('renders a thumbnail from featured_image_url when present', () => {
+    const wrapper = mountCard(
+      makePost({ featured_image_url: 'https://cdn/feat.avif', og_image_url: null }),
+      { mode: 'category' },
+    );
+    const thumb = wrapper.find('.post-card__thumb');
+    expect(thumb.exists()).toBe(true);
+    expect(thumb.find('img').exists()).toBe(true);
+  });
+
+  it('falls back to og_image_url for the thumbnail when featured_image_url is absent', () => {
+    const wrapper = mountCard(
+      makePost({ featured_image_url: undefined, og_image_url: 'https://cdn/og.avif' }),
+      { mode: 'category' },
+    );
+    const thumb = wrapper.find('.post-card__thumb');
+    expect(thumb.exists()).toBe(true);
+    expect(thumb.find('img').exists()).toBe(true);
+  });
+
+  it('renders NO thumbnail element when neither image source is present', () => {
+    const wrapper = mountCard(
+      makePost({ featured_image_url: undefined, og_image_url: null }),
+      { mode: 'category' },
+    );
+    expect(wrapper.find('.post-card__thumb').exists()).toBe(false);
+  });
+
+  it('omits the eyebrow when primary_category is null', () => {
+    const wrapper = mountCard(
+      makePost({ primary_category: null }),
+      { mode: 'category' },
+    );
+    expect(wrapper.find('[data-testid="post-category"]').exists()).toBe(false);
+    expect(wrapper.find('.post-card__eyebrow').exists()).toBe(false);
+  });
+
+  it('omits the date when published_at is null', () => {
+    const wrapper = mountCard(
+      makePost({ published_at: null }),
+      { mode: 'category' },
+    );
+    expect(wrapper.find('.post-card__meta-item--date').exists()).toBe(false);
+  });
 });
