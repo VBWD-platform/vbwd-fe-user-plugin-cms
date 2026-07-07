@@ -46,3 +46,21 @@ export function scopeToType(
   if (resolved === 'posts') return 'post';
   return undefined;
 }
+
+/**
+ * Multi-type scope (post-S121): a SearchResults widget may pin the search to an
+ * explicit set of registered post-type keys via `config.types` (e.g.
+ * `['page', 'post']`). This is the single source of truth for turning that
+ * config into the list of type keys to send as the `types` request param.
+ *
+ * Returns the cleaned, non-blank type keys. An empty result means "no multi-type
+ * filter" and the caller should fall back to the legacy single-`type` scope
+ * path ({@link scopeToType}).
+ */
+export function resolveSearchTypes(
+  config: { types?: string[] | null } | null | undefined,
+): string[] {
+  const types = config?.types;
+  if (!Array.isArray(types)) return [];
+  return types.map((type) => type.trim()).filter((type) => type.length > 0);
+}

@@ -128,6 +128,49 @@ describe('usePosts', () => {
     });
   });
 
+  it('bySearch sends a comma-joined `types` param (not `type`) when types opt is given', async () => {
+    getMock.mockResolvedValue(paginated([]));
+    const posts = usePosts();
+
+    await posts.bySearch('hospitality', 1, { types: ['page', 'post'] });
+
+    expect(getMock).toHaveBeenCalledWith('/cms/search', {
+      params: {
+        q: 'hospitality',
+        page: 1,
+        per_page: 20,
+        types: 'page,post',
+      },
+    });
+  });
+
+  it('bySearch prefers `types` over a single `type` when both are supplied', async () => {
+    getMock.mockResolvedValue(paginated([]));
+    const posts = usePosts();
+
+    await posts.bySearch('hospitality', 1, { type: 'post', types: ['page', 'post'] });
+
+    const [, options] = getMock.mock.calls[0];
+    expect(options.params.types).toBe('page,post');
+    expect(options.params.type).toBeUndefined();
+  });
+
+  it('bySearch ignores an empty `types` array and keeps the single `type` path', async () => {
+    getMock.mockResolvedValue(paginated([]));
+    const posts = usePosts();
+
+    await posts.bySearch('hospitality', 1, { type: 'post', types: [] });
+
+    expect(getMock).toHaveBeenCalledWith('/cms/search', {
+      params: {
+        q: 'hospitality',
+        page: 1,
+        per_page: 20,
+        type: 'post',
+      },
+    });
+  });
+
   it('bySearch tracks pagination state from the response', async () => {
     getMock.mockResolvedValue(
       paginated([{ id: '1', slug: 'a', title: 'A' }], { page: 2, pages: 4, total: 33 }),

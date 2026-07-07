@@ -23,10 +23,35 @@
         </h2>
 
         <div
-          v-if="dateLabel || metaFields.length"
           class="post-card__meta"
           data-testid="post-meta"
         >
+          <span
+            v-if="typeBadge"
+            class="post-card__badge"
+            :class="`post-card__badge--${typeBadge.kind}`"
+            data-testid="post-type-badge"
+          >
+            <svg
+              class="post-card__badge-icon"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              width="12"
+              height="12"
+            >
+              <path
+                v-if="typeBadge.kind === 'page'"
+                fill="currentColor"
+                d="M4 1.5A1.5 1.5 0 0 1 5.5 0h4.1a1.5 1.5 0 0 1 1.06.44l2.4 2.4A1.5 1.5 0 0 1 13.5 3.9V14.5A1.5 1.5 0 0 1 12 16H5.5A1.5 1.5 0 0 1 4 14.5zm5.5.1V3.5a1 1 0 0 0 1 1h1.9zM6 7.5a.75.75 0 0 0 0 1.5h5a.75.75 0 0 0 0-1.5zm0 3a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 0-1.5z"
+              />
+              <path
+                v-else
+                fill="currentColor"
+                d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5zM4.75 5a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5zm0 3a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5zm0 3a.75.75 0 0 0 0 1.5h3.5a.75.75 0 0 0 0-1.5z"
+              />
+            </svg>
+            {{ typeBadge.label }}
+          </span>
           <time
             v-if="dateLabel"
             class="post-card__meta-item post-card__meta-item--date"
@@ -199,6 +224,16 @@ const thumbUrl = computed<string | null>(
     null,
 );
 
+// Post-vs-page badge: `page` gets the document icon, everything else the
+// article icon. Label is the registered type name, title-cased.
+const typeBadge = computed<{ kind: 'page' | 'post'; label: string } | null>(() => {
+  const type = (props.post.type ?? '').trim();
+  if (!type) return null;
+  const kind = type === 'page' ? 'page' : 'post';
+  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  return { kind, label };
+});
+
 const leadImageUrl = computed(() => props.post.og_image_url ?? null);
 const leadImageWidth = computed(
   () => (props.post.og_image_width as number | undefined) ?? DEFAULT_LEAD_WIDTH,
@@ -319,9 +354,39 @@ function metaValue(field: PostMetaField): string {
   letter-spacing: -0.01em;
 }
 .post-card--category .post-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin: 0 0 0.6rem;
   font-size: 0.8rem;
   color: var(--vbwd-muted, var(--color-text-muted, #64748b));
+}
+.post-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.12rem 0.5rem 0.12rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+.post-card__badge-icon {
+  flex: 0 0 auto;
+}
+/* Page = neutral/slate; Post = brand accent — distinct at a glance. */
+.post-card__badge--page {
+  color: var(--vbwd-muted, var(--color-text-muted, #475569));
+  background: var(--vbwd-table-head-bg, #f1f5f9);
+  border-color: var(--vbwd-border, var(--color-border, #e2e8f0));
+}
+.post-card__badge--post {
+  color: var(--vbwd-primary, var(--color-primary, #4f46e5));
+  background: color-mix(in srgb, var(--vbwd-primary, #4f46e5) 10%, transparent);
+  border-color: color-mix(in srgb, var(--vbwd-primary, #4f46e5) 22%, transparent);
 }
 .post-card--category .post-card__excerpt {
   margin: 0;

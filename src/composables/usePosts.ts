@@ -8,7 +8,7 @@
  * Endpoints (47.0 public reads + 47.4 search):
  *   - GET /cms/posts ?type=&term_type=&term_slug=&page=&per_page=  (paginated)
  *   - GET /cms/posts/<path:slug> ?type=                            (single)
- *   - GET /cms/search ?q=&type=&term_type=&term_slug=&page=&per_page=  (FTS)
+ *   - GET /cms/search ?q=&type=|types=&term_type=&term_slug=&page=&per_page=  (FTS)
  */
 import { ref } from 'vue';
 import { api } from '@/api';
@@ -94,7 +94,12 @@ export function usePosts(options: { perPage?: number } = {}) {
   async function bySearch(
     query: string,
     pageNumber = 1,
-    scope: { type?: string; termType?: string; termSlug?: string } = {},
+    scope: {
+      type?: string;
+      types?: string[];
+      termType?: string;
+      termSlug?: string;
+    } = {},
   ): Promise<PaginatedPosts | null> {
     loading.value = true;
     try {
@@ -103,7 +108,14 @@ export function usePosts(options: { perPage?: number } = {}) {
         page: pageNumber,
         per_page: perPage,
       };
-      if (scope.type) params.type = scope.type;
+      // A non-empty multi-type scope (`types`) sends a comma-joined `types`
+      // filter and supersedes the legacy single `type`; otherwise fall back to
+      // the single `type`.
+      if (scope.types && scope.types.length > 0) {
+        params.types = scope.types.join(',');
+      } else if (scope.type) {
+        params.type = scope.type;
+      }
       if (scope.termType) params.term_type = scope.termType;
       if (scope.termSlug) params.term_slug = scope.termSlug;
 

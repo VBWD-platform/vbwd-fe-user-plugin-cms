@@ -5,6 +5,7 @@ import { ref } from 'vue';
 const bySearchMock = vi.fn();
 const itemsRef = { value: [] as unknown[] };
 const loadingRef = { value: false };
+const totalRef = { value: 0 };
 const routeQuery = ref<Record<string, unknown>>({});
 
 vi.mock('vue-router', () => ({
@@ -18,7 +19,7 @@ vi.mock('../../src/composables/usePosts', () => ({
     loading: loadingRef,
     page: { value: 1 },
     pages: { value: 1 },
-    total: { value: itemsRef.value.length },
+    total: totalRef,
   }),
 }));
 
@@ -44,6 +45,7 @@ describe('PostSearchResults (search-results widget)', () => {
     bySearchMock.mockResolvedValue(undefined);
     itemsRef.value = [];
     loadingRef.value = false;
+    totalRef.value = 0;
     routeQuery.value = {};
   });
 
@@ -159,6 +161,54 @@ describe('PostSearchResults (search-results widget)', () => {
     });
   });
 
+  it('passes config.types as a multi-type `types` scope (not single `type`)', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ types: ['page', 'post'] });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      types: ['page', 'post'],
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
+  it('config.types takes precedence over the legacy scope/type', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ types: ['page', 'post'], scope: 'posts' });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      types: ['page', 'post'],
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
+  it('falls back to the single-type scope path when config.types is empty', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ types: [], scope: 'pages' });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      type: 'page',
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
+  it('sends no type filter when config.types is empty and there is no scope', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ types: [] });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      type: undefined,
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
   it('re-searches when ?q= changes (composition across pages via the URL)', async () => {
     routeQuery.value = { q: 'first' };
     mountResults({ type: 'post' });
@@ -173,6 +223,55 @@ describe('PostSearchResults (search-results widget)', () => {
       type: 'post',
       termType: undefined,
       termSlug: undefined,
+    });
+  });
+
+  describe('results-count line', () => {
+    it('renders the count line with pluralised "results" and the query', async () => {
+      routeQuery.value = { q: 'ai' };
+      itemsRef.value = [
+        { id: '1', type: 'post', slug: 'a', title: 'A' },
+        { id: '2', type: 'post', slug: 'b', title: 'B' },
+      ];
+      totalRef.value = 10;
+      const wrapper = mountResults({});
+      await flushPromises();
+
+      const count = wrapper.find('[data-testid="search-result-count"]');
+      expect(count.exists()).toBe(true);
+      expect(count.text()).toBe('Showing 10 results for "ai"');
+    });
+
+    it('uses the singular "result" when total === 1', async () => {
+      routeQuery.value = { q: 'ai' };
+      itemsRef.value = [{ id: '1', type: 'post', slug: 'a', title: 'A' }];
+      totalRef.value = 1;
+      const wrapper = mountResults({});
+      await flushPromises();
+
+      const count = wrapper.find('[data-testid="search-result-count"]');
+      expect(count.exists()).toBe(true);
+      expect(count.text()).toBe('Showing 1 result for "ai"');
+    });
+
+    it('does NOT render the count line for an empty query', async () => {
+      routeQuery.value = {};
+      const wrapper = mountResults({});
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="search-result-count"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="search-empty-query"]').exists()).toBe(true);
+    });
+
+    it('does NOT render the count line when the query returns no results', async () => {
+      routeQuery.value = { q: 'nomatch' };
+      itemsRef.value = [];
+      totalRef.value = 0;
+      const wrapper = mountResults({});
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="search-result-count"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="search-no-results"]').exists()).toBe(true);
     });
   });
 });

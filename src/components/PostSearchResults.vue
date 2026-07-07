@@ -25,11 +25,18 @@
         {{ $t('cms.search.noResults', 'No results found.') }}
       </p>
 
-      <PostList
-        v-else
-        :posts="posts.items.value"
-        :display="display"
-      />
+      <template v-else>
+        <p
+          class="post-search-results__count"
+          data-testid="search-result-count"
+        >
+          {{ resultCountLabel }}
+        </p>
+        <PostList
+          :posts="posts.items.value"
+          :display="display"
+        />
+      </template>
     </template>
   </div>
 </template>
@@ -51,10 +58,16 @@ import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PostList from './PostList.vue';
 import { usePosts } from '../composables/usePosts';
-import { scopeToType, type SearchScope } from '../utils/searchScope';
+import { scopeToType, resolveSearchTypes, type SearchScope } from '../utils/searchScope';
 import type { PostListMode, PostMetaField } from './PostCard.vue';
 
 interface SearchResultsConfig {
+  /**
+   * Multi-type scope: an explicit set of registered post-type keys to include
+   * (e.g. `['page', 'post']`). When non-empty it supersedes `scope`/`type` and
+   * is sent as the `types` request filter.
+   */
+  types?: string[];
   /** S121 published-set scope. Replaces the legacy free-text `type`. */
   scope?: SearchScope;
   /** @deprecated pre-S121 free-text post type; still honoured via `scope` fallback. */
@@ -80,10 +93,21 @@ const display = computed(() => ({
   meta: config.value.meta ?? [],
 }));
 
+// Google-style results summary line, e.g. Showing 12 results for "ai".
+const resultCountLabel = computed<string>(() => {
+  const total = posts.total.value;
+  const noun = total === 1 ? 'result' : 'results';
+  return `Showing ${total} ${noun} for "${query.value}"`;
+});
+
 function runSearch(): void {
   if (!query.value) return;
+  const types = resolveSearchTypes(config.value);
+  const typeScope = types.length
+    ? { types }
+    : { type: scopeToType(config.value.scope, config.value.type) };
   posts.bySearch(query.value, 1, {
-    type: scopeToType(config.value.scope, config.value.type),
+    ...typeScope,
     termType: config.value.scope_term_type,
     termSlug: config.value.scope_term_slug,
   });
@@ -96,6 +120,15 @@ onMounted(runSearch);
 <style scoped>
 .post-search-results {
   width: 100%;
+  /* Breathing room between the search box widget above and the first result. */
+  margin-top: 1.75rem;
+}
+.post-search-results__count {
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--vbwd-border, var(--color-border, #e5e9f0));
+  font-size: 0.85rem;
+  color: var(--vbwd-muted, var(--color-text-muted, #64748b));
 }
 .post-search-results__hint,
 .post-search-results__loading,

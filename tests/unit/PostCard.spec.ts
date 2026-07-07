@@ -177,3 +177,34 @@ describe('PostCard — category (WordPress-archive) mode', () => {
     expect(wrapper.find('.post-card__meta-item--date').exists()).toBe(false);
   });
 });
+
+describe('PostCard — post/page type badge (category mode)', () => {
+  it('renders a page badge with the --page modifier and "Page" label for type=page', () => {
+    const wrapper = mountCard(makePost({ type: 'page' }), { mode: 'category' });
+    const badge = wrapper.find('[data-testid="post-type-badge"]');
+    expect(badge.exists()).toBe(true);
+    expect(badge.classes()).toContain('post-card__badge--page');
+    expect(badge.text()).toBe('Page');
+  });
+
+  it('renders a post badge with the --post modifier and "Post" label for type=post', () => {
+    const wrapper = mountCard(makePost({ type: 'post' }), { mode: 'category' });
+    const badge = wrapper.find('[data-testid="post-type-badge"]');
+    expect(badge.exists()).toBe(true);
+    expect(badge.classes()).toContain('post-card__badge--post');
+    expect(badge.text()).toBe('Post');
+  });
+
+  it('falls back to the --post badge for a custom non-page type, title-cased', () => {
+    const wrapper = mountCard(makePost({ type: 'ghrm' }), { mode: 'category' });
+    const badge = wrapper.find('[data-testid="post-type-badge"]');
+    expect(badge.exists()).toBe(true);
+    expect(badge.classes()).toContain('post-card__badge--post');
+    expect(badge.text()).toBe('Ghrm');
+  });
+
+  it('does NOT render the badge outside category mode', () => {
+    const wrapper = mountCard(makePost({ type: 'page' }), { mode: 'titles' });
+    expect(wrapper.find('[data-testid="post-type-badge"]').exists()).toBe(false);
+  });
+});

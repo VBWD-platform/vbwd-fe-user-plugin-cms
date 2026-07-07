@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scopeToType, resolveScope } from '../../src/utils/searchScope';
+import { scopeToType, resolveScope, resolveSearchTypes } from '../../src/utils/searchScope';
 
 describe('searchScope helper (S121 scope→request-type mapping)', () => {
   it('maps the explicit scope values to the backend post-type filter', () => {
@@ -31,5 +31,27 @@ describe('searchScope helper (S121 scope→request-type mapping)', () => {
     expect(resolveScope('pages')).toBe('pages');
     expect(resolveScope(undefined, 'post')).toBe('posts');
     expect(resolveScope(undefined, undefined)).toBe('both');
+  });
+});
+
+describe('resolveSearchTypes (multi-type scope for SearchResults)', () => {
+  it('returns the configured types array when non-empty', () => {
+    expect(resolveSearchTypes({ types: ['page', 'post'] })).toEqual(['page', 'post']);
+  });
+
+  it('returns an empty array when `types` is absent', () => {
+    expect(resolveSearchTypes({})).toEqual([]);
+    expect(resolveSearchTypes({ types: undefined })).toEqual([]);
+  });
+
+  it('returns an empty array when `types` is an empty array', () => {
+    expect(resolveSearchTypes({ types: [] })).toEqual([]);
+  });
+
+  it('drops blank/whitespace entries and trims survivors', () => {
+    expect(resolveSearchTypes({ types: [' page ', '', '  ', 'post'] })).toEqual([
+      'page',
+      'post',
+    ]);
   });
 });
