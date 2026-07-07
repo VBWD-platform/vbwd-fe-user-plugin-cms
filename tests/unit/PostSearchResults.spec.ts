@@ -111,6 +111,54 @@ describe('PostSearchResults (search-results widget)', () => {
     expect(wrapper.find('[data-testid="search-no-results"]').exists()).toBe(true);
   });
 
+  it('maps config.scope to the request type (S121): pages→page', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ scope: 'pages' });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenCalledWith('guide', 1, {
+      type: 'page',
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
+  it('maps config.scope to the request type (S121): posts→post', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ scope: 'posts' });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      type: 'post',
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
+  it('maps config.scope="both" to no type filter (S121)', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ scope: 'both' });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      type: undefined,
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
+  it('falls back to the legacy `type` when scope is absent (S121 back-compat)', async () => {
+    routeQuery.value = { q: 'guide' };
+    mountResults({ type: 'page' });
+    await flushPromises();
+
+    expect(bySearchMock).toHaveBeenLastCalledWith('guide', 1, {
+      type: 'page',
+      termType: undefined,
+      termSlug: undefined,
+    });
+  });
+
   it('re-searches when ?q= changes (composition across pages via the URL)', async () => {
     routeQuery.value = { q: 'first' };
     mountResults({ type: 'post' });

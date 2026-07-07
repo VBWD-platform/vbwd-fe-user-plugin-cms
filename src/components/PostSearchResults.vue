@@ -51,9 +51,13 @@ import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PostList from './PostList.vue';
 import { usePosts } from '../composables/usePosts';
+import { scopeToType, type SearchScope } from '../utils/searchScope';
 import type { PostListMode, PostMetaField } from './PostCard.vue';
 
 interface SearchResultsConfig {
+  /** S121 published-set scope. Replaces the legacy free-text `type`. */
+  scope?: SearchScope;
+  /** @deprecated pre-S121 free-text post type; still honoured via `scope` fallback. */
   type?: string;
   mode?: PostListMode;
   meta?: PostMetaField[];
@@ -79,7 +83,7 @@ const display = computed(() => ({
 function runSearch(): void {
   if (!query.value) return;
   posts.bySearch(query.value, 1, {
-    type: config.value.type,
+    type: scopeToType(config.value.scope, config.value.type),
     termType: config.value.scope_term_type,
     termSlug: config.value.scope_term_slug,
   });
