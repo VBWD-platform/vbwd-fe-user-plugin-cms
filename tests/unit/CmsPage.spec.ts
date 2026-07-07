@@ -146,7 +146,7 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     expect(store.currentPage?.slug).toBe('test23');
   });
 
-  it('injects the post title heading + tags into the content body (never above the page, never the excerpt)', async () => {
+  it('injects the post magazine hero (title + excerpt + tags) into the content body, above the post copy', async () => {
     getMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
       if (url === '/cms/posts/my-post') {
         if (config?.params?.type === 'post') {
@@ -176,16 +176,19 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     await flushPromises();
 
     const html = wrapper.html();
-    // Title heading + tags are injected under the header, into the content body.
+    // With no featured image the hero is a themed gradient band carrying the
+    // title, excerpt and tags, injected into the content body (hero is default-on).
+    expect(html).toContain('cms-post-hero');
+    expect(html).toContain('cms-post-hero--gradient');
     expect(html).toContain('cms-post-title');
     expect(html).toContain('My Great Post');
     expect(html).toContain('cms-post-tags');
     expect(html).toContain('href="/tag?tag=vue"');
     expect(html).toContain('Body copy here');
-    // The excerpt is never injected (the post body keeps its own lead).
-    expect(html).not.toContain('cms-post-excerpt');
-    expect(html).not.toContain('A short summary of the post.');
-    // Title → tags → body order (tags under the heading, both above the content).
+    // The excerpt IS overlaid on the hero now (default magazine header).
+    expect(html).toContain('cms-post-excerpt');
+    expect(html).toContain('A short summary of the post.');
+    // Title → tags → body order (title heading first, both above the content).
     expect(html.indexOf('cms-post-title')).toBeLessThan(html.indexOf('cms-post-tags'));
     expect(html.indexOf('cms-post-tags')).toBeLessThan(html.indexOf('Body copy here'));
   });

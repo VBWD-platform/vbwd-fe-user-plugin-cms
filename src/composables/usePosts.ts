@@ -91,6 +91,36 @@ export function usePosts(options: { perPage?: number } = {}) {
     }
   }
 
+  async function byType(
+    type: string,
+    pageNumber = 1,
+  ): Promise<PaginatedPosts | null> {
+    loading.value = true;
+    try {
+      const result = await api.get<PaginatedPosts>('/cms/posts', {
+        params: {
+          type,
+          page: pageNumber,
+          per_page: perPage,
+        },
+      });
+      items.value = result.items ?? [];
+      page.value = result.page ?? pageNumber;
+      pages.value = result.pages ?? 1;
+      total.value = result.total ?? items.value.length;
+      return result;
+    } catch (error) {
+      console.warn('[CMS] usePosts.byType failed', error);
+      items.value = [];
+      page.value = pageNumber;
+      pages.value = 1;
+      total.value = 0;
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function bySearch(
     query: string,
     pageNumber = 1,
@@ -154,5 +184,16 @@ export function usePosts(options: { perPage?: number } = {}) {
     }
   }
 
-  return { items, current, loading, page, pages, total, byTerm, bySearch, bySlug };
+  return {
+    items,
+    current,
+    loading,
+    page,
+    pages,
+    total,
+    byType,
+    byTerm,
+    bySearch,
+    bySlug,
+  };
 }

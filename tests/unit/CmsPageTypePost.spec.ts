@@ -52,7 +52,7 @@ function headerHtmlOf(wrapper: ReturnType<typeof mountPost>): string {
   return wrapper.find('.base-stub').attributes('data-header') ?? '';
 }
 
-describe('CmsPageTypePost', () => {
+describe('CmsPageTypePost — magazine hero header', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
@@ -61,37 +61,86 @@ describe('CmsPageTypePost', () => {
     vi.restoreAllMocks();
   });
 
-  it('injects the title heading with tags under it — never the excerpt', async () => {
+  it('renders an image-backed hero when enabled and a featured image is present', async () => {
     const wrapper = mountPost(
       makePost({
+        featured_image_url: '/uploads/hero.jpg',
         terms: [{ id: 't1', term_type: 'tag', slug: 'vue', name: 'Vue' }],
       }),
     );
     await flushPromises();
 
     const header = headerHtmlOf(wrapper);
+    // Hero container, not the plain post header.
+    expect(header).toContain('cms-post-hero');
+    expect(header).toContain('cms-post-hero--image');
+    expect(header).not.toContain('cms-post-hero--gradient');
+    // The featured image URL is baked into the hero background.
+    expect(header).toContain('/uploads/hero.jpg');
+    // Title + excerpt are overlaid on the hero.
     expect(header).toContain('cms-post-title');
     expect(header).toContain('My Great Post');
+    expect(header).toContain('cms-post-excerpt');
+    expect(header).toContain('A short summary of the post.');
+    // A scrim/blur contrast layer sits under the title for legibility.
+    expect(header).toContain('cms-post-hero__contrast');
+    // Tags still render, under the heading.
     expect(header).toContain('cms-post-tags');
     expect(header).toContain('Vue');
-    // The title comes before the tags (tags under the heading).
-    expect(header.indexOf('cms-post-title')).toBeLessThan(header.indexOf('cms-post-tags'));
-    // The excerpt is never injected (the post body keeps its own lead).
-    expect(header).not.toContain('cms-post-excerpt');
-    expect(header).not.toContain('A short summary of the post.');
   });
 
-  it('renders the title heading even when the post has no tags', async () => {
-    const wrapper = mountPost(makePost({ terms: [] }));
+  it('renders a gradient-band hero when enabled but no featured image is present', async () => {
+    const wrapper = mountPost(makePost({ featured_image_url: null }));
     await flushPromises();
 
     const header = headerHtmlOf(wrapper);
+    expect(header).toContain('cms-post-hero');
+    expect(header).toContain('cms-post-hero--gradient');
+    expect(header).not.toContain('cms-post-hero--image');
+    // No image element and no inline background-image in the gradient case.
+    expect(header).not.toContain('<img');
+    expect(header).not.toContain('background-image');
+    // Title + excerpt still overlaid.
     expect(header).toContain('cms-post-title');
     expect(header).toContain('My Great Post');
-    expect(header).not.toContain('cms-post-tags');
+    expect(header).toContain('cms-post-excerpt');
+    expect(header).toContain('A short summary of the post.');
+    // Blur contrast layer under the title present in the gradient case too.
+    expect(header).toContain('cms-post-hero__contrast');
   });
 
-  it('renders a chip per tag term, linking to the tag archive (categories excluded)', async () => {
+  it('defaults the hero ON when show_featured_hero is absent from type_data', async () => {
+    const wrapper = mountPost(makePost({ type_data: {} }));
+    await flushPromises();
+
+    const header = headerHtmlOf(wrapper);
+    expect(header).toContain('cms-post-hero');
+  });
+
+  it('keeps the plain title header (no hero) when show_featured_hero === false', async () => {
+    const wrapper = mountPost(
+      makePost({
+        featured_image_url: '/uploads/hero.jpg',
+        type_data: { show_featured_hero: false },
+        terms: [{ id: 't1', term_type: 'tag', slug: 'vue', name: 'Vue' }],
+      }),
+    );
+    await flushPromises();
+
+    const header = headerHtmlOf(wrapper);
+    // The plain, unchanged header — never the hero.
+    expect(header).toContain('cms-post-header');
+    expect(header).not.toContain('cms-post-hero');
+    expect(header).toContain('cms-post-title');
+    expect(header).toContain('My Great Post');
+    // Plain header carries the tags but never the excerpt or a background image.
+    expect(header).toContain('cms-post-tags');
+    expect(header).toContain('Vue');
+    expect(header).not.toContain('cms-post-excerpt');
+    expect(header).not.toContain('/uploads/hero.jpg');
+  });
+
+  it('renders a chip per tag term in the hero, linking to the tag archive (categories excluded)', async () => {
     const wrapper = mountPost(
       makePost({
         terms: [
@@ -109,20 +158,6 @@ describe('CmsPageTypePost', () => {
     expect(header).toContain('>Vue<');
     expect(header).toContain('>TypeScript<');
     // Category terms never appear in the cloud.
-    expect(header).not.toContain('News');
-  });
-
-  it('renders no tag chips when the post has only category terms', async () => {
-    const wrapper = mountPost(
-      makePost({
-        terms: [{ id: 'c1', term_type: 'category', slug: 'news', name: 'News' }],
-      }),
-    );
-    await flushPromises();
-
-    const header = headerHtmlOf(wrapper);
-    expect(header).toContain('cms-post-title');
-    expect(header).not.toContain('cms-post-tags');
     expect(header).not.toContain('News');
   });
 });

@@ -292,4 +292,66 @@ onUnmounted(() => {
   text-decoration: none;
 }
 .cms-post-tag:hover { color: var(--vbwd-color-primary, #2563eb); border-color: var(--vbwd-color-primary, #2563eb); }
+
+/* Magazine hero header (posts only) — a medium featured band above the post
+ * body, injected via headerHtml. Colour comes from theme tokens (each style's
+ * :root supplies --color-*); the scrim/blur overlays are decorative rgba()
+ * layers carrying no theme identity. */
+.cms-post-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: 42vh;
+  min-height: 320px;
+  margin: 0 0 1.75rem;
+  padding: 2rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  color: var(--color-hero-text, var(--color-on-primary, #ffffff));
+}
+.cms-post-hero--gradient {
+  background-image: linear-gradient(135deg,
+    var(--color-primary, #2563eb) 0%,
+    var(--color-secondary, #7c3aed) 100%);
+}
+/* Full-band darkening so text stays legible over any image. */
+.cms-post-hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.18) 60%, rgba(0, 0, 0, 0.05) 100%);
+}
+.cms-post-hero__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 60rem;
+}
+/* Blurred contrast layer directly under the title/excerpt for readability. */
+.cms-post-hero__contrast {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.75rem 1.1rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.cms-post-hero .cms-post-title { margin: 0; color: inherit; }
+.cms-post-hero .cms-post-excerpt { margin: 0.5rem 0 0; font-size: 1.05rem; line-height: 1.5; color: inherit; opacity: 0.95; }
+.cms-post-hero .cms-post-tags { margin-top: 1rem; }
+.cms-post-hero .cms-post-tag {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-hero-text, var(--color-on-primary, #ffffff));
+}
+.cms-post-hero .cms-post-tag:hover {
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.24);
+  color: var(--color-hero-text, var(--color-on-primary, #ffffff));
+}
+@media (max-width: 640px) {
+  .cms-post-hero { height: auto; min-height: 260px; padding: 1.25rem; }
+}
 </style>

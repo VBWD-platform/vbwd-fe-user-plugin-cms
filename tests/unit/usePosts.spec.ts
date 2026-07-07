@@ -76,6 +76,51 @@ describe('usePosts', () => {
     });
   });
 
+  it('byType calls the public posts endpoint with type + page + per_page and NO term params', async () => {
+    getMock.mockResolvedValue(paginated([{ id: '1', slug: 'a', title: 'A' }]));
+    const posts = usePosts();
+
+    await posts.byType('post', 2);
+
+    expect(getMock).toHaveBeenCalledWith('/cms/posts', {
+      params: {
+        type: 'post',
+        page: 2,
+        per_page: 20,
+      },
+    });
+    const [, options] = getMock.mock.calls[0];
+    expect(options.params.term_type).toBeUndefined();
+    expect(options.params.term_slug).toBeUndefined();
+    expect(posts.items.value).toHaveLength(1);
+    expect(posts.loading.value).toBe(false);
+  });
+
+  it('byType tracks pagination state and honours a per_page override', async () => {
+    getMock.mockResolvedValue(
+      paginated([{ id: '1', slug: 'a', title: 'A' }], { page: 2, pages: 4, total: 33 }),
+    );
+    const posts = usePosts({ perPage: 6 });
+
+    await posts.byType('post', 2);
+
+    expect(getMock).toHaveBeenCalledWith('/cms/posts', {
+      params: { type: 'post', page: 2, per_page: 6 },
+    });
+    expect(posts.page.value).toBe(2);
+    expect(posts.pages.value).toBe(4);
+    expect(posts.total.value).toBe(33);
+  });
+
+  it('byType degrades gracefully on a fetch error (empty list, no throw)', async () => {
+    getMock.mockRejectedValue(new Error('network'));
+    const posts = usePosts();
+
+    await expect(posts.byType('post', 1)).resolves.toBeDefined();
+    expect(posts.items.value).toEqual([]);
+    expect(posts.loading.value).toBe(false);
+  });
+
   it('bySlug fetches a single post by path with the type param', async () => {
     getMock.mockResolvedValue({ id: '1', slug: 'about/team', title: 'Team', type: 'page' });
     const posts = usePosts();

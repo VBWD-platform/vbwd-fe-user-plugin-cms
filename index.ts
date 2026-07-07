@@ -61,6 +61,13 @@ export const cmsPlugin: IPlugin = {
     import('./src/components/TagArchive.vue').then((m) => {
       registerCmsVueComponent('TagArchive', m.default);
     });
+    // The "PostArchive" (blog index) widget. Lists EVERY published post of the
+    // configured type (no term filter) through usePosts.byType + PostList. An
+    // admin drops it onto the posts-archive page/layout (content_json.component
+    // = "PostArchive"); the archive page is seeded at the config `posts_root`.
+    import('./src/components/PostArchiveWidget.vue').then((m) => {
+      registerCmsVueComponent('PostArchive', m.default);
+    });
     // Public add-on catalogue widget. Fetches GET /api/v1/addons/ and renders a
     // card per add-on with the price rendered through the shared PriceDisplay
     // (fed by the S85 price_info block). An admin drops it onto any cms

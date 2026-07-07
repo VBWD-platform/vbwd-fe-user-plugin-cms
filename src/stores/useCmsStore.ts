@@ -22,6 +22,13 @@ export interface CmsPageItem {
   title?: string;
   /** Short post summary. Posts render it under the title; pages ignore it. */
   excerpt?: string | null;
+  /** Featured image URL — posts back the magazine hero header with it. */
+  featured_image_url?: string | null;
+  /**
+   * Per-type JSON bag (cms_post `type_data`). Posts read
+   * `show_featured_hero` off it: absent = hero ON (default), `false` = off.
+   */
+  type_data?: Record<string, unknown> | null;
   /** `page` | `post` — present on unified cms_post rows. */
   type?: string;
   language: string;
