@@ -6,7 +6,6 @@ import {
   seedSearchFixtures,
   cleanupSearchFixtures,
   SEARCH_TOKEN,
-  type SearchFixtures,
 } from './support/searchFixtures';
 
 /**
@@ -23,7 +22,6 @@ const SHOT_DIR = process.env.S121_SHOT_DIR;
 
 let api: APIRequestContext;
 let token: string;
-let fixtures: SearchFixtures;
 
 async function shot(page: import('@playwright/test').Page, name: string): Promise<void> {
   if (!SHOT_DIR) return;
@@ -52,7 +50,7 @@ test.describe('S121 — CMS classic search results flow (search layout)', () => 
   test.beforeAll(async () => {
     api = await apiRequest.newContext({ baseURL: BASE_URL });
     token = await loginAdmin(api);
-    fixtures = await seedSearchFixtures(api, token);
+    await seedSearchFixtures(api, token);
   });
 
   test.afterAll(async () => {
