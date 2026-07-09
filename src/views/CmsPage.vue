@@ -114,6 +114,14 @@ onMounted(() => {
  * by default and the theme can tighten it down. The old 800px cap made every
  * page look like a narrow blog post regardless of theme. */
 .cms-page { margin: 0 auto; padding: 0.5rem 1rem; }
+/* Mobile: three stacked horizontal gutters (this page pad + the layout
+ * .container pad + the theme edge-align --edge-inset) crush the widget box on
+ * narrow viewports. Collapse this outermost page gutter so the theme's
+ * --edge-inset stays the SINGLE outer gutter for every CMS widget. Vertical
+ * padding is untouched, as is `margin: 0 auto`. Desktop geometry is unchanged. */
+@media (max-width: 768px) {
+  .cms-page { padding-left: 0; padding-right: 0; }
+}
 .cms-page__loading { color: var(--color-text-muted, #888); padding: 2rem 0; text-align: center; }
 
 /* 404 — responsive, theme-aware. Uses --color-accent / --color-heading

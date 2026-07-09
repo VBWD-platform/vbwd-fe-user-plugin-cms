@@ -1,5 +1,8 @@
 <template>
-  <header class="cms-super-header">
+  <header
+    ref="headerElement"
+    :class="['cms-super-header', { 'cms-super-header--stuck': isStuck }]"
+  >
     <!-- Logo: an image when configured, otherwise the plain logo text. -->
     <a
       class="cms-super-header__logo"
@@ -35,17 +38,51 @@
       <PostSearch :config="searchConfig" />
     </div>
 
-    <!-- Auth link: login when anonymous, dashboard when signed in. -->
+    <!-- Auth link: the same account icon in both states — anonymous links to
+         login, signed-in links to the dashboard. The label is the icon's
+         accessible name (aria-label + title), never visible text. -->
     <div
       v-if="showAuthLinks"
       class="cms-super-header__auth"
     >
       <a
-        class="cms-super-header__auth-link"
+        class="cms-super-header__auth-link cms-super-header__auth-link--icon"
         :href="authLink.href"
-      >{{ authLink.label }}</a>
+        :aria-label="authLink.label"
+        :title="authLink.label"
+        :data-test-id="authLink.testId"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle
+            cx="12"
+            cy="7"
+            r="4"
+          />
+        </svg>
+      </a>
     </div>
   </header>
+
+  <!-- Spacer: only present while the header is stuck (fixed, out of flow). Its
+       height mirrors the measured header height so page content does not jump
+       up by the header's height when it detaches. Purely presentational. -->
+  <div
+    v-if="isStuck"
+    class="cms-super-header__spacer"
+    aria-hidden="true"
+    data-test-id="super-header-spacer"
+    :style="{ height: `${spacerHeightPx}px` }"
+  />
 </template>
 
 <script setup lang="ts">
@@ -65,9 +102,14 @@
  *   { logo_image_url?, logo_text?, logo_link?, nav_widget_slug?, show_search?,
  *     search_placeholder?, search_target_path?, search_scope?, quicksearch?,
  *     quicksearch_limit?, show_auth_links?, login_label?, login_path?,
- *     dashboard_label?, dashboard_path? }
+ *     dashboard_label?, dashboard_path?, stickable?, stickable_offset_px? }
+ *
+ * When `stickable` is true the header pins itself (position: fixed) to the top
+ * of the viewport once the visitor scrolls past `stickable_offset_px`. When
+ * false (the default) no scroll listener is attached and behaviour — and the
+ * rendered DOM — is exactly as before.
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api, isAuthenticated } from '@/api';
 import type { CmsWidgetData } from '../stores/useCmsStore';
 import type { SearchScope } from '../utils/searchScope';
@@ -90,6 +132,8 @@ interface SuperHeaderConfig {
   login_path?: string;
   dashboard_label?: string;
   dashboard_path?: string;
+  stickable?: boolean;
+  stickable_offset_px?: number;
 }
 
 const props = defineProps<{ config?: SuperHeaderConfig | null }>();
@@ -110,6 +154,8 @@ const DEFAULTS = {
   login_path: '/login',
   dashboard_label: 'Dashboard',
   dashboard_path: '/dashboard',
+  stickable: false,
+  stickable_offset_px: 160,
 } as const;
 
 // The name this widget is registered under — used to break a nav→SuperHeader
@@ -139,19 +185,73 @@ const searchConfig = computed(() => ({
 // Resolved on mount so tests can control it and so it re-reads the token after
 // client-side hydration (the SSR/prerender pass has no session).
 const authenticated = ref(false);
+
+// Both states render the same account icon; only the destination, accessible
+// name and test id differ. `login_label` / `dashboard_label` are the icon's
+// accessible name (aria-label + title), not visible text.
 const authLink = computed(() =>
   authenticated.value
     ? {
         href: config.value.dashboard_path ?? DEFAULTS.dashboard_path,
         label: config.value.dashboard_label ?? DEFAULTS.dashboard_label,
+        testId: 'super-header-dashboard-icon',
       }
     : {
         href: config.value.login_path ?? DEFAULTS.login_path,
         label: config.value.login_label ?? DEFAULTS.login_label,
-      },
-);
+        testId: 'super-header-login-icon',
+      });
 
 const navWidget = ref<CmsWidgetData | null>(null);
+
+// --- Stickable header -------------------------------------------------------
+// Opt-in: only when `stickable === true` do we attach a scroll listener. The
+// header becomes fixed once `window.scrollY` passes the resolved offset, and a
+// same-height spacer holds the page layout so content does not jump.
+const STICKABLE_DEFAULT_OFFSET_PX = 160;
+
+const stickable = computed(() => config.value.stickable === true);
+
+// Clamp mirrors PostSearch's quicksearch_limit idiom: a non-finite or negative
+// value falls back to the default; otherwise floor to a whole, non-negative px.
+const stickableOffsetPx = computed(() => {
+  const raw = config.value.stickable_offset_px ?? STICKABLE_DEFAULT_OFFSET_PX;
+  if (!Number.isFinite(raw) || raw < 0) return STICKABLE_DEFAULT_OFFSET_PX;
+  return Math.floor(raw);
+});
+
+const headerElement = ref<HTMLElement | null>(null);
+const isStuck = ref(false);
+const spacerHeightPx = ref(0);
+// A boolean guard (not the frame id) throttles the handler: with a synchronous
+// scheduler the callback resets it before the id assignment would complete, so
+// keying on the id could wedge the throttle. The id is kept only to cancel a
+// still-pending frame on unmount.
+let scrollFrameScheduled = false;
+let pendingScrollFrame: number | null = null;
+
+function evaluateStuckState(): void {
+  if (typeof window === 'undefined') return;
+  const shouldStick = window.scrollY > stickableOffsetPx.value;
+  // Capture the header's current height before it detaches, so the spacer that
+  // replaces it in flow is exactly as tall.
+  if (shouldStick && headerElement.value) {
+    spacerHeightPx.value = headerElement.value.offsetHeight;
+  }
+  isStuck.value = shouldStick;
+}
+
+// rAF-throttled so a burst of scroll events collapses into one layout read per
+// frame (no thrash). A single frame is scheduled at a time.
+function onScroll(): void {
+  if (typeof window === 'undefined' || scrollFrameScheduled) return;
+  scrollFrameScheduled = true;
+  pendingScrollFrame = window.requestAnimationFrame(() => {
+    scrollFrameScheduled = false;
+    pendingScrollFrame = null;
+    evaluateStuckState();
+  });
+}
 
 function isSuperHeaderWidget(widget: CmsWidgetData): boolean {
   if (widget.widget_type !== 'vue-component') return false;
@@ -179,6 +279,19 @@ async function loadNavWidget(): Promise<void> {
 onMounted(() => {
   authenticated.value = isAuthenticated();
   void loadNavWidget();
+  if (stickable.value && typeof window !== 'undefined') {
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+});
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined') return;
+  window.removeEventListener('scroll', onScroll);
+  if (pendingScrollFrame !== null) {
+    window.cancelAnimationFrame(pendingScrollFrame);
+    pendingScrollFrame = null;
+  }
+  scrollFrameScheduled = false;
 });
 </script>
 
@@ -193,6 +306,25 @@ onMounted(() => {
   width: 100%;
   padding: 0.5rem 1rem;
   box-sizing: border-box;
+}
+/* Stuck state: the header is fixed to the top of the viewport. Because the
+   fixed element leaves `.cms-widget--vue`'s flow, the edge-align block's
+   max-width / margin:auto no longer apply — so it re-establishes the page
+   column here to stay aligned instead of spanning screen edge to edge.
+   z-index 240 sits above ordinary page content yet below the CMS menu chrome
+   (overlay 250, mobile drawer 300, burger 400) so the drawer/burger stay on
+   top. Colour ALWAYS via theme tokens with a literal only in fallback position. */
+.cms-super-header--stuck {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 240;
+  max-width: var(--container-max, 1200px);
+  margin-left: auto;
+  margin-right: auto;
+  background: var(--color-surface, var(--color-bg, #fff));
+  box-shadow: var(--vbwd-shadow-md, 0 6px 20px rgba(15, 23, 42, 0.12));
 }
 .cms-super-header__logo {
   display: inline-flex;
@@ -234,13 +366,35 @@ onMounted(() => {
 .cms-super-header__auth-link:hover {
   opacity: 0.9;
 }
+/* Icon variant (signed-in): a square, transparent affordance so the account
+   glyph — which inherits `currentColor` — reads on its own. Colour comes only
+   from theme tokens; no new colour declarations are needed here. */
+.cms-super-header__auth-link--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  background: transparent;
+  color: var(--color-text, #0f172a);
+}
+.cms-super-header__auth-link--icon svg {
+  display: block;
+  width: 1.375rem;
+  height: 1.375rem;
+}
 
 /* Mobile: the nav's own burger takes over the menu; the search box collapses
    so the logo + burger + auth link stay on one comfortable row. */
 @media (max-width: 768px) {
+  /* Trim the header's own side gutter on mobile: it is the fourth stacked
+     horizontal gutter, so we tighten it (1rem -> 0.75rem) while the theme's
+     --edge-inset remains the single outer gutter for the CMS widgets around it.
+     Vertical padding is kept; desktop geometry is unchanged. */
   .cms-super-header {
     gap: 0.5rem;
     flex-wrap: wrap;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
   .cms-super-header__search {
     order: 3;

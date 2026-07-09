@@ -24,6 +24,33 @@
         @keydown.up.prevent="moveActive(-1)"
         @keydown.esc="closeDropdown"
       >
+      <!-- Submit button sits inside the input's right edge. type="submit" so it
+           reuses the form's @submit.prevent handler — no separate click wiring.
+           The label is the icon's accessible name (aria-label), never visible. -->
+      <button
+        type="submit"
+        class="post-search__submit"
+        aria-label="Search"
+        data-testid="post-search-submit"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle
+            cx="11"
+            cy="11"
+            r="8"
+          />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+      </button>
     </form>
 
     <ul
@@ -214,16 +241,56 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .post-search__form {
+  position: relative;
   width: 100%;
 }
 .post-search__input {
   width: 100%;
-  padding: 0.6rem 0.9rem;
+  /* Extra right padding keeps typed text clear of the submit button. */
+  padding: 0.6rem 2.75rem 0.6rem 0.9rem;
   border: 1px solid var(--vbwd-input-border, #cbd5e1);
   border-radius: var(--vbwd-input-radius, 6px);
   background: var(--vbwd-input-bg, #fff);
   color: var(--vbwd-input-text, #0f172a);
   font-size: 1rem;
+}
+/* type="search" renders a browser-native clear "×" at the input's right edge in
+   Chrome/Safari, which would collide with our submit button. Suppress only that
+   native affordance; type="search" stays for its semantics + mobile keyboard. */
+.post-search__input::-webkit-search-cancel-button,
+.post-search__input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+/* Pale, secondary affordance: transparent, borderless, muted token colour that
+   darkens on hover/focus. The SVG inherits `currentColor`, so colour flows from
+   the button's `color`. Colour ONLY via theme tokens with fallbacks. The 44px
+   min box is the WCAG/Apple touch target — the glyph itself stays ~1.1rem. */
+.post-search__submit {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vbwd-input-placeholder, var(--color-text-muted, #94a3b8));
+  cursor: pointer;
+}
+.post-search__submit:hover,
+.post-search__submit:focus,
+.post-search__submit:focus-visible {
+  color: var(--vbwd-input-text, var(--color-text, #0f172a));
+}
+.post-search__submit svg {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 .post-search__dropdown {
   position: absolute;

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount, flushPromises } from '@vue/test-utils';
 import type { CmsWidgetData } from '../../src/stores/useCmsStore';
@@ -169,6 +169,41 @@ describe('SuperHeader widget — search', () => {
   });
 });
 
+// The rest of this file stubs PostSearch (see the top-of-file mock). This block
+// instead exercises the REAL PostSearch so we prove the header's search box
+// carries the submit button that PostSearch renders. We reset the module graph,
+// un-mock PostSearch, and mock only its own collaborators (vue-router, usePosts).
+describe('SuperHeader widget — search submit button (real PostSearch)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    apiGetMock.mockReset();
+    apiGetMock.mockResolvedValue(menuNavWidget());
+    authenticatedState = false;
+  });
+
+  it('renders the PostSearch submit button inside the header search box', async () => {
+    vi.doUnmock('../../src/components/PostSearch.vue');
+    vi.doMock('vue-router', () => ({
+      useRouter: () => ({ push: vi.fn() }),
+      useRoute: () => ({ query: {}, path: '/' }),
+    }));
+    vi.doMock('../../src/composables/usePosts', () => ({
+      usePosts: () => ({ bySearch: vi.fn().mockResolvedValue({ items: [] }) }),
+    }));
+
+    const { default: RealSuperHeader } = await import('../../src/components/SuperHeader.vue');
+    const wrapper = mount(RealSuperHeader, { props: { config: { nav_widget_slug: '' } } });
+    await flushPromises();
+
+    const search = wrapper.find('.cms-super-header__search');
+    expect(search.exists()).toBe(true);
+    const button = search.find('[data-testid="post-search-submit"]');
+    expect(button.exists()).toBe(true);
+    expect(button.attributes('type')).toBe('submit');
+    wrapper.unmount();
+  });
+});
+
 describe('SuperHeader widget — auth link', () => {
   beforeEach(() => {
     apiGetMock.mockReset();
@@ -176,25 +211,209 @@ describe('SuperHeader widget — auth link', () => {
     authenticatedState = false;
   });
 
-  it('shows the login link when unauthenticated', async () => {
+  it('shows a login icon (not text) when unauthenticated', async () => {
     authenticatedState = false;
     const wrapper = await mountHeader({ nav_widget_slug: '' });
-    const link = wrapper.find('.cms-super-header__auth-link');
+    const auth = wrapper.find('.cms-super-header__auth');
+    const link = auth.find('[data-test-id="super-header-login-icon"]');
     expect(link.exists()).toBe(true);
-    expect(link.text()).toBe('Login');
+    expect(link.classes()).toContain('cms-super-header__auth-link');
+    expect(link.classes()).toContain('cms-super-header__auth-link--icon');
+    expect(auth.findAll('svg')).toHaveLength(1);
+    expect(link.text()).not.toContain('Login');
     expect(link.attributes('href')).toBe('/login');
+    expect(link.attributes('aria-label')).toBe('Login');
+    expect(link.attributes('title')).toBe('Login');
   });
 
-  it('shows the dashboard link when authenticated', async () => {
+  it('drives the login icon accessible name from login_label', async () => {
+    authenticatedState = false;
+    const wrapper = await mountHeader({ nav_widget_slug: '', login_label: 'Sign in' });
+    const link = wrapper.find('[data-test-id="super-header-login-icon"]');
+    expect(link.attributes('aria-label')).toBe('Sign in');
+    expect(link.attributes('title')).toBe('Sign in');
+  });
+
+  it('honours a custom login_path on the icon anchor href', async () => {
+    authenticatedState = false;
+    const wrapper = await mountHeader({ nav_widget_slug: '', login_path: '/account/login' });
+    const link = wrapper.find('[data-test-id="super-header-login-icon"]');
+    expect(link.attributes('href')).toBe('/account/login');
+  });
+
+  it('shows a dashboard icon (not text) when authenticated', async () => {
     authenticatedState = true;
     const wrapper = await mountHeader({ nav_widget_slug: '' });
-    const link = wrapper.find('.cms-super-header__auth-link');
-    expect(link.text()).toBe('Dashboard');
+    const auth = wrapper.find('.cms-super-header__auth');
+    const link = auth.find('[data-test-id="super-header-dashboard-icon"]');
+    expect(link.exists()).toBe(true);
+    expect(link.classes()).toContain('cms-super-header__auth-link');
+    expect(link.classes()).toContain('cms-super-header__auth-link--icon');
+    expect(auth.find('svg').exists()).toBe(true);
+    expect(link.text()).not.toContain('Dashboard');
     expect(link.attributes('href')).toBe('/dashboard');
+    expect(link.attributes('aria-label')).toBe('Dashboard');
+    expect(link.attributes('title')).toBe('Dashboard');
   });
 
-  it('omits the auth block entirely when show_auth_links is false', async () => {
+  it('drives the icon accessible name from dashboard_label', async () => {
+    authenticatedState = true;
+    const wrapper = await mountHeader({ nav_widget_slug: '', dashboard_label: 'My account' });
+    const link = wrapper.find('[data-test-id="super-header-dashboard-icon"]');
+    expect(link.attributes('aria-label')).toBe('My account');
+    expect(link.attributes('title')).toBe('My account');
+  });
+
+  it('honours a custom dashboard_path on the icon anchor href', async () => {
+    authenticatedState = true;
+    const wrapper = await mountHeader({ nav_widget_slug: '', dashboard_path: '/account' });
+    const link = wrapper.find('[data-test-id="super-header-dashboard-icon"]');
+    expect(link.attributes('href')).toBe('/account');
+  });
+
+  it('omits the auth block entirely when show_auth_links is false (anonymous)', async () => {
+    authenticatedState = false;
     const wrapper = await mountHeader({ nav_widget_slug: '', show_auth_links: false });
     expect(wrapper.find('.cms-super-header__auth').exists()).toBe(false);
+  });
+
+  it('omits the auth block entirely when show_auth_links is false (authenticated)', async () => {
+    authenticatedState = true;
+    const wrapper = await mountHeader({ nav_widget_slug: '', show_auth_links: false });
+    expect(wrapper.find('.cms-super-header__auth').exists()).toBe(false);
+  });
+});
+
+// The `stickable` feature attaches a passive, rAF-throttled scroll listener that
+// pins the header once the visitor scrolls past a threshold. rAF is stubbed to
+// run synchronously so a dispatched `scroll` resolves state within one tick, and
+// `window.scrollY` is overridden per assertion.
+describe('SuperHeader widget — stickable', () => {
+  function setScrollY(value: number): void {
+    Object.defineProperty(window, 'scrollY', { value, writable: true, configurable: true });
+  }
+
+  function stuck(wrapper: Awaited<ReturnType<typeof mountHeader>>): boolean {
+    return wrapper.find('.cms-super-header').classes().includes('cms-super-header--stuck');
+  }
+
+  function spacerExists(wrapper: Awaited<ReturnType<typeof mountHeader>>): boolean {
+    return wrapper.find('[data-test-id="super-header-spacer"]').exists();
+  }
+
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    apiGetMock.mockResolvedValue(menuNavWidget());
+    authenticatedState = false;
+    setScrollY(0);
+    // Run rAF synchronously so a dispatched `scroll` resolves the stuck state
+    // within the same tick (no real frame to await).
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback): number => {
+      cb(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (): void => undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setScrollY(0);
+  });
+
+  it('adds no scroll listener and never sticks when stickable is absent/false', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    const wrapper = await mountHeader({ nav_widget_slug: '' });
+
+    const scrollCalls = addEventListenerSpy.mock.calls.filter((call) => call[0] === 'scroll');
+    expect(scrollCalls).toHaveLength(0);
+
+    setScrollY(9999);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+
+    expect(stuck(wrapper)).toBe(false);
+    expect(spacerExists(wrapper)).toBe(false);
+    addEventListenerSpy.mockRestore();
+  });
+
+  it('registers a passive scroll listener and sticks past the default 160px offset', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    const wrapper = await mountHeader({ nav_widget_slug: '', stickable: true });
+
+    const scrollCalls = addEventListenerSpy.mock.calls.filter((call) => call[0] === 'scroll');
+    expect(scrollCalls).toHaveLength(1);
+    expect(scrollCalls[0][2]).toEqual({ passive: true });
+
+    setScrollY(200);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+
+    expect(stuck(wrapper)).toBe(true);
+    expect(spacerExists(wrapper)).toBe(true);
+    addEventListenerSpy.mockRestore();
+  });
+
+  it('un-sticks and drops the spacer when scrolled back to the top', async () => {
+    const wrapper = await mountHeader({ nav_widget_slug: '', stickable: true });
+
+    setScrollY(200);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(stuck(wrapper)).toBe(true);
+
+    setScrollY(0);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(stuck(wrapper)).toBe(false);
+    expect(spacerExists(wrapper)).toBe(false);
+  });
+
+  it('honours a custom stickable_offset_px threshold', async () => {
+    const wrapper = await mountHeader({
+      nav_widget_slug: '',
+      stickable: true,
+      stickable_offset_px: 40,
+    });
+
+    setScrollY(30);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(stuck(wrapper)).toBe(false);
+
+    setScrollY(50);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(stuck(wrapper)).toBe(true);
+  });
+
+  it('falls back to the 160px default for a negative/non-finite offset', async () => {
+    const wrapper = await mountHeader({
+      nav_widget_slug: '',
+      stickable: true,
+      stickable_offset_px: -5,
+    });
+
+    // 100 <= 160 (the default) proves the negative offset was not applied — a
+    // floor-to-0 bug would have stuck the header here.
+    setScrollY(100);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(stuck(wrapper)).toBe(false);
+
+    setScrollY(200);
+    window.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(stuck(wrapper)).toBe(true);
+  });
+
+  it('removes the scroll listener on unmount when stickable', async () => {
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+    const wrapper = await mountHeader({ nav_widget_slug: '', stickable: true });
+
+    wrapper.unmount();
+
+    const scrollRemovals = removeEventListenerSpy.mock.calls.filter((call) => call[0] === 'scroll');
+    expect(scrollRemovals).toHaveLength(1);
+    removeEventListenerSpy.mockRestore();
   });
 });

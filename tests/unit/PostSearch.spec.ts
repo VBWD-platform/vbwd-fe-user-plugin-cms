@@ -259,4 +259,54 @@ describe('PostSearch (search box widget)', () => {
     const listboxId = wrapper.find('[role="listbox"]').attributes('id');
     expect(input.attributes('aria-controls')).toBe(listboxId);
   });
+
+  // ---------------------------------------------------------------------------
+  // Submit button (magnifier) — reuses the form @submit handler.
+  // ---------------------------------------------------------------------------
+  it('renders a submit button with an icon inside the form and no visible text', () => {
+    const wrapper = mountBox({});
+    const button = wrapper.find('form [data-testid="post-search-submit"]');
+    expect(button.exists()).toBe(true);
+    expect(button.attributes('type')).toBe('submit');
+    expect(button.attributes('aria-label')).toBe('Search');
+    expect(button.find('svg').exists()).toBe(true);
+    expect(button.text()).toBe('');
+  });
+
+  it('renders the submit button regardless of quicksearch on/off', () => {
+    expect(
+      mountBox({}).find('[data-testid="post-search-submit"]').exists(),
+    ).toBe(true);
+    expect(
+      mountBox({ quicksearch: true }).find('[data-testid="post-search-submit"]').exists(),
+    ).toBe(true);
+  });
+
+  it('clicking the button URL-syncs like a submit (quicksearch off, target_path)', async () => {
+    const wrapper = mountBox({ target_path: '/search' });
+    await wrapper.find('input').setValue('staffing');
+    await wrapper.find('[data-testid="post-search-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(pushMock).toHaveBeenCalledWith({
+      path: '/search',
+      query: { q: 'staffing' },
+    });
+  });
+
+  it('clicking the button with an active dropdown row opens that result', async () => {
+    bySearchMock.mockResolvedValue(pageResult([
+      { id: '1', slug: 'alpha', title: 'Alpha' },
+      { id: '2', slug: 'beta', title: 'Beta' },
+    ]));
+    const wrapper = mountBox({ quicksearch: true });
+    await wrapper.find('input').setValue('doc');
+    await vi.advanceTimersByTimeAsync(400);
+
+    await wrapper.find('input').trigger('keydown', { key: 'ArrowDown' });
+    await wrapper.find('[data-testid="post-search-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(pushMock).toHaveBeenCalledWith('/alpha');
+  });
 });

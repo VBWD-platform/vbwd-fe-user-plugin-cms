@@ -179,6 +179,15 @@ function widgetFor(areaName: string): CmsWidgetData | undefined {
 /* Theme styles set --container-max (1100px / 1200px / 100%). Use the var
  * so themes can widen or narrow; fall back to 1200px if no theme active. */
 .container { max-width: var(--container-max, 1200px); margin: 0 auto; padding: 0 1.5rem; }
+/* Mobile: collapse this container gutter so the theme's --edge-inset is the
+ * SINGLE outer gutter for CMS widgets (see CmsPage.vue for the full three-gutter
+ * story). We zero ONLY the horizontal padding; max-width and `margin: 0 auto`
+ * stay. Body copy still keeps its readable 1.5rem because the theme's edge-align
+ * block targets `.cms-area--content .container` with `!important`, which always
+ * beats this non-important rule regardless of specificity. Desktop unchanged. */
+@media (max-width: 768px) {
+  .container { padding-left: 0; padding-right: 0; }
+}
 .cms-page__body :deep(img) { max-width: 100%; height: auto; }
 .cms-page__body :deep(pre) { background: var(--color-surface-soft, var(--color-surface, #f5f5f5)); color: var(--color-text, inherit); padding: 1rem; border-radius: 4px; overflow-x: auto; }
 .cms-page__body :deep(blockquote) { border-left: 4px solid var(--color-border, #ddd); margin: 0; padding-left: 1rem; opacity: 0.8; }
