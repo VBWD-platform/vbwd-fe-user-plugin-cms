@@ -124,6 +124,30 @@ describe('PostCard — category (WordPress-archive) mode', () => {
     expect(excerpt.text()).toBe('Curated summary.');
   });
 
+  it('links the category eyebrow to the archive_url from serialization', () => {
+    const wrapper = mountCard(
+      makePost({
+        primary_category: { name: 'News', slug: 'news', archive_url: 'category/news' },
+      }),
+      { mode: 'category' },
+    );
+    const eyebrow = wrapper.findComponent(RouterLinkStub);
+    // The FIRST router-link in category mode is the eyebrow.
+    expect(eyebrow.props('to')).toBe('/category/news');
+  });
+
+  it('derives the category archive path from slug when archive_url is absent', () => {
+    const wrapper = mountCard(
+      makePost({ primary_category: { name: 'News', slug: 'news' } }),
+      { mode: 'category' },
+    );
+    const eyebrow = wrapper.find('[data-testid="post-category"]');
+    expect(eyebrow.exists()).toBe(true);
+    // RouterLinkStub renders `to` on the anchor's props; assert via the link.
+    const link = wrapper.findAllComponents(RouterLinkStub)[0];
+    expect(link.props('to')).toBe('/category/news');
+  });
+
   it('falls back to excerpt when excerpt_effective is absent', () => {
     const wrapper = mountCard(
       makePost({ excerpt_effective: undefined, excerpt: 'Raw excerpt.' }),

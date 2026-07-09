@@ -1,6 +1,7 @@
 {
   "cms": {
     "loading": "Chargement…",
+    "home": "Accueil",
     "notFound": "Page introuvable.",
     "allCategories": "Toutes",
     "noPages": "Aucune page disponible.",

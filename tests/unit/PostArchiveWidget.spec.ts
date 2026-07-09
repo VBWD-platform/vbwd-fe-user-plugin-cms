@@ -104,4 +104,44 @@ describe('PostArchiveWidget (PostArchive)', () => {
 
     expect(wrapper.find('[data-testid="post-archive-next"]').exists()).toBe(false);
   });
+
+  it('defaults the three display toggles ON when config omits them', async () => {
+    itemsRef.value = [
+      {
+        id: '1', type: 'post', slug: 'a', title: 'A', excerpt: 'ea',
+        content_html: `<p>${'word '.repeat(400)}</p>`, published_at: null, og_image_url: null,
+        primary_category: { name: 'News', slug: 'news', archive_url: 'category/news' },
+        tags: [{ name: 'AI', slug: 'ai' }],
+      },
+    ];
+    const wrapper = mountWidget({ type: 'post', mode: 'category' });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="post-category"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="post-tag"]').exists()).toBe(true);
+    expect(wrapper.find('.post-card__meta-item--reading_time').exists()).toBe(true);
+  });
+
+  it('threads the three config booleans through to each card', async () => {
+    itemsRef.value = [
+      {
+        id: '1', type: 'post', slug: 'a', title: 'A', excerpt: 'ea',
+        content_html: `<p>${'word '.repeat(400)}</p>`, published_at: null, og_image_url: null,
+        primary_category: { name: 'News', slug: 'news', archive_url: 'category/news' },
+        tags: [{ name: 'AI', slug: 'ai' }],
+      },
+    ];
+    const wrapper = mountWidget({
+      type: 'post',
+      mode: 'category',
+      show_categories: false,
+      show_tags: false,
+      show_article_size: false,
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="post-category"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="post-tag"]').exists()).toBe(false);
+    expect(wrapper.find('.post-card__meta-item--reading_time').exists()).toBe(false);
+  });
 });

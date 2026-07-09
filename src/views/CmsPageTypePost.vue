@@ -50,7 +50,9 @@ const tagChipsHtml = computed(() => {
   return `<div class="cms-post-tags" aria-label="Tags">${tags
     .map(
       (tag) =>
-        `<a class="cms-post-tag" href="/tag?tag=${encodeURIComponent(tag.slug)}">${escHtml(tag.name)}</a>`,
+        // Real tag-archive link at the fixed `/tag/<slug>` prefix (resolved via
+        // the catch-all → term precedence), not the legacy `?tag=` query.
+        `<a class="cms-post-tag" href="/tag/${encodeURIComponent(tag.slug)}">${escHtml(tag.name)}</a>`,
     )
     .join('')}</div>`;
 });

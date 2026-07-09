@@ -8,8 +8,8 @@
     <template v-if="mode === 'category'">
       <div class="post-card__content">
         <router-link
-          v-if="categoryName"
-          :to="detailPath"
+          v-if="categoryName && showCategories"
+          :to="categoryPath"
           class="post-card__eyebrow"
           data-testid="post-category"
         >
@@ -62,6 +62,22 @@
             class="post-card__meta-item"
             :class="`post-card__meta-item--${field}`"
           >{{ metaValue(field) }}</span>
+        </div>
+
+        <div
+          v-if="tagChips.length"
+          class="post-card__tags"
+          data-testid="post-tags"
+        >
+          <router-link
+            v-for="tag in tagChips"
+            :key="tag.to"
+            :to="tag.to"
+            class="post-card__tag"
+            data-testid="post-tag"
+          >
+            {{ tag.name }}
+          </router-link>
         </div>
 
         <p
@@ -121,6 +137,22 @@
         >{{ metaValue(field) }}</span>
       </div>
 
+      <div
+        v-if="tagChips.length"
+        class="post-card__tags"
+        data-testid="post-tags"
+      >
+        <router-link
+          v-for="tag in tagChips"
+          :key="tag.to"
+          :to="tag.to"
+          class="post-card__tag"
+          data-testid="post-tag"
+        >
+          {{ tag.name }}
+        </router-link>
+      </div>
+
       <p
         v-if="showExcerpt && post.excerpt"
         class="post-card__excerpt"
@@ -162,6 +194,21 @@ export type PostMetaField =
 interface PostDisplay {
   mode?: PostListMode;
   meta?: PostMetaField[];
+  /**
+   * The three per-widget archive toggles (default ON when undefined). They are
+   * the single source of truth for the category eyebrow, tag chips and the
+   * reading-time meta item — the legacy `meta` array no longer drives tags or
+   * reading_time (those keys are filtered out of the meta row).
+   */
+  showCategories?: boolean;
+  showTags?: boolean;
+  showArticleSize?: boolean;
+}
+
+/** A tag rendered as a small chip that links to its `/tag/<slug>` archive. */
+interface TagChip {
+  name: string;
+  to: string;
 }
 
 const props = defineProps<{
@@ -184,7 +231,27 @@ const DEFAULT_LEAD_HEIGHT = 675;
 const WORDS_PER_MINUTE = 200;
 
 const mode = computed<PostListMode>(() => props.display?.mode ?? 'titles');
-const metaFields = computed<PostMetaField[]>(() => props.display?.meta ?? []);
+
+// The three archive toggles default ON — absence never hides a feature.
+const showCategories = computed<boolean>(() => props.display?.showCategories !== false);
+const showTags = computed<boolean>(() => props.display?.showTags !== false);
+const showArticleSize = computed<boolean>(() => props.display?.showArticleSize !== false);
+
+// Tags and reading_time are owned by the booleans, so they are stripped from the
+// legacy `meta` row to avoid two competing mechanisms (single source of truth).
+const baseMetaFields = computed<PostMetaField[]>(() =>
+  (props.display?.meta ?? []).filter(
+    (field) => field !== 'tags' && field !== 'reading_time',
+  ),
+);
+
+// Reading time is appended to the meta row (reusing the shared loop) when the
+// `show_article_size` toggle is on — one render path for every meta item.
+const metaFields = computed<PostMetaField[]>(() =>
+  showArticleSize.value
+    ? [...baseMetaFields.value, 'reading_time']
+    : baseMetaFields.value,
+);
 
 const showExcerpt = computed(
   () => mode.value === 'excerpt' || mode.value === 'full',
@@ -198,10 +265,49 @@ const detailPath = computed(() =>
 );
 
 // Category-mode fields (additive; degrade gracefully when absent).
-const categoryName = computed<string>(() => {
-  const primary = props.post.primary_category as { name?: string } | null | undefined;
-  return primary?.name ?? '';
+const primaryCategory = computed<
+  { name?: string; slug?: string; archive_url?: string } | null | undefined
+>(() => props.post.primary_category as
+  | { name?: string; slug?: string; archive_url?: string }
+  | null
+  | undefined);
+
+const categoryName = computed<string>(() => primaryCategory.value?.name ?? '');
+
+// The eyebrow links to the category archive (`/category/<slug>`) using the
+// backend-serialized `archive_url`; falls back to a slug-derived path, and
+// finally to the post itself so an old payload without a slug never breaks.
+const categoryPath = computed<string>(() => {
+  const category = primaryCategory.value;
+  if (category?.archive_url) return `/${category.archive_url}`;
+  if (category?.slug) return `/category/${category.slug}`;
+  return detailPath.value;
 });
+// Tag chips (gated by `show_tags`) link to the real `/tag/<slug>` archive,
+// preferring the backend-serialized `archive_url`, then the slug, so the fe
+// never re-hardcodes the prefix. String tags degrade to a slug-as-name link.
+const tagChips = computed<TagChip[]>(() => {
+  if (!showTags.value || !Array.isArray(props.post.tags)) return [];
+  const rawTags = props.post.tags as Array<
+    { name?: string; slug?: string; archive_url?: string } | string
+  >;
+  return rawTags
+    .map((tag) => {
+      if (typeof tag === 'string') {
+        return tag ? { name: tag, to: `/tag/${encodeURIComponent(tag)}` } : null;
+      }
+      const name = tag.name ?? tag.slug ?? '';
+      if (!name) return null;
+      const to = tag.archive_url
+        ? `/${tag.archive_url}`
+        : tag.slug
+          ? `/tag/${encodeURIComponent(tag.slug)}`
+          : `/tag/${encodeURIComponent(name)}`;
+      return { name, to };
+    })
+    .filter((chip): chip is TagChip => chip !== null);
+});
+
 const dateLabel = computed<string>(() =>
   props.post.published_at
     ? new Date(props.post.published_at).toLocaleDateString(undefined, {
@@ -255,13 +361,6 @@ function metaValue(field: PostMetaField): string {
       return (props.post.author_name as string | undefined) ?? props.post.author_id ?? '';
     case 'time_ago':
       return timeAgo(props.post.published_at);
-    case 'tags':
-      return Array.isArray(props.post.tags)
-        ? (props.post.tags as Array<{ name?: string } | string>)
-            .map((tag) => (typeof tag === 'string' ? tag : tag.name ?? ''))
-            .filter(Boolean)
-            .join(', ')
-        : '';
     case 'published_at':
       return props.post.published_at
         ? new Date(props.post.published_at).toLocaleDateString()
@@ -305,6 +404,28 @@ function metaValue(field: PostMetaField): string {
   margin: 0;
   color: var(--color-text, #334155);
   line-height: 1.55;
+}
+.post-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.6rem;
+}
+.post-card__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  text-decoration: none;
+  color: var(--color-primary, #4f46e5);
+  background: var(--color-surface-muted, #f1f5f9);
+  border: 1px solid var(--color-border, #e5e9f0);
+}
+.post-card__tag:hover {
+  background: var(--color-surface, #fff);
+  border-color: var(--color-primary, #4f46e5);
 }
 .post-card__body :deep(img) {
   max-width: 100%;

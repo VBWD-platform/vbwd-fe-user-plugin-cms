@@ -47,6 +47,7 @@
 import { computed, onMounted, watch } from 'vue';
 import PostList from './PostList.vue';
 import { usePosts } from '../composables/usePosts';
+import { readArchiveToggles } from '../utils/archiveDisplay';
 import type { PostListMode, PostMetaField } from './PostCard.vue';
 
 interface PostArchiveConfig {
@@ -54,6 +55,9 @@ interface PostArchiveConfig {
   mode?: PostListMode;
   posts_per_page?: number;
   paginate?: boolean;
+  show_categories?: boolean;
+  show_tags?: boolean;
+  show_article_size?: boolean;
 }
 
 /** Matches the CMS `posts_per_page` config default (backend config.json). */
@@ -76,6 +80,7 @@ const posts = usePosts({ perPage: postsPerPage.value });
 const display = computed(() => ({
   mode: config.value.mode ?? ('category' as PostListMode),
   meta: ARCHIVE_META_FIELDS,
+  ...readArchiveToggles(config.value),
 }));
 
 function fetchArchive(pageNumber: number): void {

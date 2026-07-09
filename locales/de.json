@@ -1,6 +1,7 @@
 {
   "cms": {
     "loading": "Wird geladen…",
+    "home": "Startseite",
     "notFound": "Seite nicht gefunden.",
     "allCategories": "Alle",
     "noPages": "Keine Seiten verfügbar.",

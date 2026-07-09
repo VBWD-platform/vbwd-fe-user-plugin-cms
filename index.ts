@@ -7,8 +7,10 @@ import {
   resolveCmsPageType,
 } from './src/registry/pageTypeRegistry';
 import RichTextBlock from './src/components/RichTextBlock.vue';
+import CmsHomeLink from './src/components/CmsHomeLink.vue';
 import { createCmsMiddlewareRoutingGuard } from './src/routing/middlewareRoutingGuard';
 import { api as hostApi } from '@/api';
+import { brandActionsRegistry } from '@/plugins/brandActionsRegistry';
 import en from './locales/en.json';
 import de from './locales/de.json';
 import es from './locales/es.json';
@@ -60,6 +62,13 @@ export const cmsPlugin: IPlugin = {
     // through the same usePosts.byTerm + PostList path as the Category widget.
     import('./src/components/TagArchive.vue').then((m) => {
       registerCmsVueComponent('TagArchive', m.default);
+    });
+    // The shared, route-driven term archive widget. ONE instance on the ONE
+    // `terms-archive` layout renders EVERY category AND tag archive: it reads
+    // the term type + slug from the catch-all route (`/category/<slug>` /
+    // `/tag/<slug>`) — not static config — and lists that term's posts.
+    import('./src/components/TermArchiveWidget.vue').then((m) => {
+      registerCmsVueComponent('TermArchive', m.default);
     });
     // The "PostArchive" (blog index) widget. Lists EVERY published post of the
     // configured type (no term filter) through usePosts.byType + PostList. An
@@ -168,8 +177,16 @@ export const cmsPlugin: IPlugin = {
     sdk.addRouterGuard(createCmsMiddlewareRoutingGuard(hostApi));
   },
 
-  activate() { this._active = true; },
-  deactivate() { this._active = false; },
+  activate() {
+    this._active = true;
+    // Inject the CMS "Home" link into the fe-user sidebar logo block. The host
+    // brandActionsRegistry is a generic seam — core never names the CMS plugin.
+    brandActionsRegistry.register({ id: 'cms-home', component: CmsHomeLink });
+  },
+  deactivate() {
+    this._active = false;
+    brandActionsRegistry.unregister('cms-home');
+  },
 };
 
 // Public SDK seam: external fe-user plugins import these from the cms plugin

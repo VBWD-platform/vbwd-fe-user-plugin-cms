@@ -153,8 +153,8 @@ describe('CmsPageTypePost — magazine hero header', () => {
     await flushPromises();
 
     const header = headerHtmlOf(wrapper);
-    expect(header).toContain('href="/tag?tag=vue"');
-    expect(header).toContain('href="/tag?tag=ts"');
+    expect(header).toContain('href="/tag/vue"');
+    expect(header).toContain('href="/tag/ts"');
     expect(header).toContain('>Vue<');
     expect(header).toContain('>TypeScript<');
     // Category terms never appear in the cloud.

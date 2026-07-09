@@ -1,6 +1,7 @@
 {
   "cms": {
     "loading": "加载中…",
+    "home": "首页",
     "notFound": "页面未找到。",
     "allCategories": "全部",
     "noPages": "暂无页面。",

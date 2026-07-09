@@ -1,6 +1,7 @@
 {
   "cms": {
     "loading": "Loading…",
+    "home": "Home",
     "notFound": "Page not found.",
     "embed": {
       "notFoundTitle": "No posts found",
@@ -28,6 +29,12 @@
       "prompt": "Select a tag.",
       "loading": "Loading…",
       "empty": "No posts found for this tag."
+    },
+    "termArchive": {
+      "prompt": "No term selected.",
+      "loading": "Loading…",
+      "emptyCategory": "No posts in this category yet.",
+      "emptyTag": "No posts in this tag yet."
     },
     "addonCatalog": {
       "loading": "Loading add-ons…",

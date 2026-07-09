@@ -183,7 +183,7 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     expect(html).toContain('cms-post-title');
     expect(html).toContain('My Great Post');
     expect(html).toContain('cms-post-tags');
-    expect(html).toContain('href="/tag?tag=vue"');
+    expect(html).toContain('href="/tag/vue"');
     expect(html).toContain('Body copy here');
     // The excerpt IS overlaid on the hero now (default magazine header).
     expect(html).toContain('cms-post-excerpt');
@@ -545,7 +545,7 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
     // The post type component is the only one that injects tag chips — their
     // presence proves the dispatcher resolved the `post` type component.
     expect(wrapper.html()).toContain('cms-post-tags');
-    expect(wrapper.html()).toContain('href="/tag?tag=release"');
+    expect(wrapper.html()).toContain('href="/tag/release"');
   });
 
   it('falls back to the page type component for a page (no auto header)', async () => {

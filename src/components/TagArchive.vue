@@ -58,6 +58,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PostList from './PostList.vue';
 import { usePosts } from '../composables/usePosts';
+import { readArchiveToggles } from '../utils/archiveDisplay';
 import type { PostListMode, PostMetaField } from './PostCard.vue';
 
 interface TagArchiveConfig {
@@ -66,6 +67,9 @@ interface TagArchiveConfig {
   mode?: PostListMode;
   meta?: PostMetaField[];
   limit?: number;
+  show_categories?: boolean;
+  show_tags?: boolean;
+  show_article_size?: boolean;
 }
 
 const props = defineProps<{ config?: TagArchiveConfig | null }>();
@@ -80,6 +84,7 @@ const tagSlug = computed<string>(() => ((route.query.tag as string) ?? '').trim(
 const display = computed(() => ({
   mode: config.value.mode ?? 'excerpt',
   meta: config.value.meta ?? [],
+  ...readArchiveToggles(config.value),
 }));
 
 /** Title-case the slug (`getting-started` → `Getting Started`) for the label. */

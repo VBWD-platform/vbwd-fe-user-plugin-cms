@@ -36,6 +36,10 @@ import type { PostSummary } from '../composables/usePosts';
 interface PostDisplay {
   mode?: PostListMode;
   meta?: PostMetaField[];
+  /** The three archive display toggles, forwarded verbatim to each PostCard. */
+  showCategories?: boolean;
+  showTags?: boolean;
+  showArticleSize?: boolean;
 }
 
 const props = defineProps<{

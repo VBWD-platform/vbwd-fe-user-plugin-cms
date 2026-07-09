@@ -35,6 +35,7 @@ import {
   rssFeedHref,
   injectRssAutodiscovery,
 } from '../composables/useSeoHandoff';
+import { readArchiveToggles } from '../utils/archiveDisplay';
 import type { PostListMode, PostMetaField } from './PostCard.vue';
 
 interface TermListConfig {
@@ -46,6 +47,9 @@ interface TermListConfig {
   limit?: number;
   paginate?: boolean;
   widget_slug?: string;
+  show_categories?: boolean;
+  show_tags?: boolean;
+  show_article_size?: boolean;
 }
 
 const props = defineProps<{ config?: TermListConfig | null }>();
@@ -57,6 +61,7 @@ const posts = usePosts({ perPage: config.value.limit });
 const display = computed(() => ({
   mode: config.value.mode ?? 'titles',
   meta: config.value.meta ?? [],
+  ...readArchiveToggles(config.value),
 }));
 
 /** The current term's feed URL (null when the term config is incomplete). */

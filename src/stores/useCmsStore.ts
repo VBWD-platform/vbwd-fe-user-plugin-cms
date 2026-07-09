@@ -94,6 +94,21 @@ export interface CmsPageItem {
   tags?: string[];
   custom_fields?: Record<string, unknown>;
   custom_field_defs?: import('vbwd-view-component').CustomFieldDef[];
+  /**
+   * Present ONLY on a synthetic term-archive page (a category/tag archive that
+   * has no backing `cms_post`). Carries the resolved term so the shared
+   * `terms-archive` layout's `TermArchive` widget can render the term name +
+   * description without a second fetch. Absent on every real page/post.
+   */
+  term_archive?: CmsTermArchiveContext;
+}
+
+/** The resolved term backing a dynamic term archive (see {@link CmsPageItem}). */
+export interface CmsTermArchiveContext {
+  term_type: string;
+  slug: string;
+  name: string;
+  description?: string | null;
 }
 
 /**
@@ -188,6 +203,14 @@ interface CachedCmsPage {
 
 // Module-level dedupe of in-flight prefetches (non-reactive on purpose).
 const prefetchInFlight = new Set<string>();
+
+// The ONE shared layout that renders every category AND tag archive (seeded by
+// the backend under this fixed slug). Single source of truth for the fe fetch.
+const TERMS_ARCHIVE_LAYOUT_SLUG = 'terms-archive';
+
+// A term-archive slug: a fixed `category/` or `tag/` prefix + the term slug
+// (which may itself be nested). Group 1 = term type, group 2 = term slug.
+const TERM_ARCHIVE_SLUG_PATTERN = /^(category|tag)\/(.+)$/;
 
 interface CmsStoreState {
   categories: CmsCategory[];
@@ -309,18 +332,19 @@ export const useCmsStore = defineStore('cms-user', {
       this.currentLayout = null;
       this.currentStyleCss = null;
       try {
-        // Fetch post and categories in parallel so both are ready before layout renders
-        const [post] = await Promise.all([
-          this._fetchPostRaw(slug, previewToken),
+        // Resolve the page/post (and its assets) in parallel with categories so
+        // both are ready before the layout renders. Term archives are resolved
+        // inside `_resolvePageOrTerm` ONLY after page+post both 404.
+        const [resolved] = await Promise.all([
+          this._resolvePageOrTerm(slug, previewToken),
           this.categories.length ? Promise.resolve() : this.fetchCategories(),
         ]);
-        this.currentPage = post;
-        const { layout, css } = await this._fetchPostAssets(post);
-        this.currentLayout = layout;
-        this.currentStyleCss = css;
+        this.currentPage = resolved.page;
+        this.currentLayout = resolved.layout;
+        this.currentStyleCss = resolved.css;
         // Warm the cache so a return visit / prefetch hit is instant.
         if (!previewToken) {
-          this.pageCache[slug] = { page: post, layout, css };
+          this.pageCache[slug] = resolved;
         }
       } catch (e: any) {
         const status = e?.response?.status ?? e?.status;
@@ -398,6 +422,119 @@ export const useCmsStore = defineStore('cms-user', {
         styleId ? this._fetchStyleCssRaw(styleId) : Promise.resolve(null),
       ]);
       return { layout, css };
+    },
+
+    /**
+     * Resolve a slug to a renderable page in strict precedence order:
+     * **page → post → term archive**. A page or post is resolved (with its
+     * layout + style) exactly as before. ONLY when both 404 — and never for a
+     * preview draft — a `category/<slug>` / `tag/<slug>` slug falls through to
+     * term resolution, so an existing page (e.g. `category/backend`) always wins.
+     * Any non-404 error (403 access-gated, etc.) propagates unchanged.
+     */
+    async _resolvePageOrTerm(
+      slug: string,
+      previewToken?: string,
+    ): Promise<CachedCmsPage> {
+      try {
+        const post = await this._fetchPostRaw(slug, previewToken);
+        const { layout, css } = await this._fetchPostAssets(post);
+        return { page: post, layout, css };
+      } catch (e: any) {
+        const status = e?.response?.status ?? e?.status;
+        if (status !== 404 || previewToken) throw e;
+        const termArchive = await this._resolveTermArchive(slug);
+        if (termArchive) return termArchive;
+        throw e;
+      }
+    },
+
+    /**
+     * Resolve a `category/<slug>` / `tag/<slug>` slug to a synthetic term-archive
+     * page rendered by the shared `terms-archive` layout. Returns `null` when the
+     * slug is not a term-archive path or the term does not exist, so the caller
+     * falls through to the normal not-found handling. The `TermArchive` widget on
+     * the shared layout reads the term from the route + this synthetic page's
+     * `term_archive` context and lists the term's posts.
+     */
+    async _resolveTermArchive(slug: string): Promise<CachedCmsPage | null> {
+      const match = TERM_ARCHIVE_SLUG_PATTERN.exec(slug);
+      if (!match) return null;
+      const [, termType, termSlug] = match;
+
+      let term: CmsTermArchiveContext;
+      try {
+        term = await api.get<CmsTermArchiveContext>(
+          `/cms/terms/${termType}/${termSlug}`,
+        );
+      } catch {
+        return null;
+      }
+
+      const [layout, css] = await Promise.all([
+        this._fetchLayoutBySlugRaw(TERMS_ARCHIVE_LAYOUT_SLUG),
+        this._fetchDefaultStyleCss(),
+      ]);
+      return { page: this._buildTermArchivePage(slug, term, layout), layout, css };
+    },
+
+    /** Build the synthetic CmsPageItem for a resolved term archive. */
+    _buildTermArchivePage(
+      slug: string,
+      term: CmsTermArchiveContext,
+      layout: CmsLayout | null,
+    ): CmsPageItem {
+      return {
+        id: `term-archive:${term.term_type}:${term.slug}`,
+        slug,
+        type: 'page',
+        title: term.name,
+        name: term.name,
+        content_html: '',
+        content_json: {},
+        language: 'en',
+        resolved_layout_id: layout?.id ?? null,
+        sort_order: 0,
+        meta_title: term.name,
+        meta_description: term.description ?? null,
+        og_title: null,
+        og_description: null,
+        og_image_url: null,
+        canonical_url: null,
+        robots: 'index,follow',
+        schema_json: null,
+        updated_at: '',
+        term_archive: {
+          term_type: term.term_type,
+          slug: term.slug,
+          name: term.name,
+          description: term.description ?? null,
+        },
+      };
+    },
+
+    /** Fetch the shared layout by slug (widgets embedded). Null on failure. */
+    async _fetchLayoutBySlugRaw(slug: string): Promise<CmsLayout | null> {
+      try {
+        const layout = await api.get<CmsLayout>(`/cms/layouts/by-slug/${slug}`);
+        if (layout?.id) this.layoutCache[layout.id] = layout;
+        return layout;
+      } catch (e) {
+        console.warn('[CMS] fetchLayoutBySlug failed', e);
+        return null;
+      }
+    },
+
+    /** Fetch the active default style CSS (term archives have no explicit style). */
+    async _fetchDefaultStyleCss(): Promise<string | null> {
+      try {
+        const resp = await fetch('/api/v1/cms/styles/default/css');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return await resp.text();
+      } catch (e) {
+        console.warn('[CMS] fetchDefaultStyleCss failed', e);
+        return null;
+      }
     },
 
     async fetchLayout(id: string) {

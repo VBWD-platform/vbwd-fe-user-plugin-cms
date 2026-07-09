@@ -59,6 +59,7 @@ import { useRoute } from 'vue-router';
 import PostList from './PostList.vue';
 import { usePosts } from '../composables/usePosts';
 import { scopeToType, resolveSearchTypes, type SearchScope } from '../utils/searchScope';
+import { readArchiveToggles } from '../utils/archiveDisplay';
 import type { PostListMode, PostMetaField } from './PostCard.vue';
 
 interface SearchResultsConfig {
@@ -77,6 +78,9 @@ interface SearchResultsConfig {
   per_page?: number;
   scope_term_type?: string;
   scope_term_slug?: string;
+  show_categories?: boolean;
+  show_tags?: boolean;
+  show_article_size?: boolean;
 }
 
 const props = defineProps<{ config?: SearchResultsConfig | null }>();
@@ -91,6 +95,7 @@ const query = computed<string>(() => ((route.query.q as string) ?? '').trim());
 const display = computed(() => ({
   mode: config.value.mode ?? 'titles',
   meta: config.value.meta ?? [],
+  ...readArchiveToggles(config.value),
 }));
 
 // Google-style results summary line, e.g. Showing 12 results for "ai".
