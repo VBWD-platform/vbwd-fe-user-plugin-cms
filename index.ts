@@ -98,6 +98,13 @@ export const cmsPlugin: IPlugin = {
     import('./src/components/CookieConsent.vue').then((m) => {
       registerCmsVueComponent('CookieConsent', m.default);
     });
+    // Configurable site header widget. Composes a logo, a nav pulled from
+    // another widget by slug (rendered through CmsWidgetRenderer), the reusable
+    // PostSearch box and a login/dashboard auth link. An admin drops it onto a
+    // layout header area (content_json.component = "SuperHeader").
+    import('./src/components/SuperHeader.vue').then((m) => {
+      registerCmsVueComponent('SuperHeader', m.default);
+    });
 
     // S47.3 — built-in `richtext` content-type renderer (placement: inline).
     // A post with no blocks renders its content_html as one implicit richtext
