@@ -8,6 +8,7 @@ import {
 } from './src/registry/pageTypeRegistry';
 import RichTextBlock from './src/components/RichTextBlock.vue';
 import CmsHomeLink from './src/components/CmsHomeLink.vue';
+import EntityPageContent from './src/components/EntityPageContent.vue';
 import { createCmsMiddlewareRoutingGuard } from './src/routing/middlewareRoutingGuard';
 import { api as hostApi } from '@/api';
 import { brandActionsRegistry } from '@/plugins/brandActionsRegistry';
@@ -200,3 +201,9 @@ export const cmsPlugin: IPlugin = {
 // entry to register their own page types (e.g. a video plugin →
 // CmsPageTypeVideo) without touching cms/core.
 export { registerCmsPageType, resolveCmsPageType };
+
+// S128 — shared public component. Adopter fe-user plugins (dataset/shop/booking)
+// import EntityPageContent from the cms plugin entry and drop it under their own
+// entity's description to render that entity's attached CMS page (body + blocks
+// + scoped CSS): `<EntityPageContent :owner-type="'dataset'" :owner-id="id" />`.
+export { EntityPageContent };
