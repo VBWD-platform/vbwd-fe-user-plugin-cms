@@ -86,12 +86,24 @@ function truncate(label: string): string {
 
 interface Crumb { label: string; to: string; current: boolean }
 
+// Generic seam: a page/widget may override the CURRENT crumb's display label
+// for this exact route path (e.g. show a real entity name instead of the
+// slug-derived label). No override → default behaviour is unchanged.
+function applyCurrentLabelOverride(built: Crumb[]): Crumb[] {
+  const overrideLabel = getBreadcrumbLabel(route.path);
+  if (overrideLabel) {
+    const current = built.find((crumb) => crumb.current);
+    if (current) current.label = overrideLabel;
+  }
+  return built;
+}
+
 const crumbs = computed<Crumb[]>(() => {
   const parts = route.path.replace(/^\//, '').split('/').filter(Boolean);
+  const page = cmsStore.currentPage;
 
   // Flat URL (single segment) — use CMS page metadata for category + title
   if (parts.length === 1) {
-    const page = cmsStore.currentPage;
     if (page) {
       const result: Crumb[] = [];
       const category = page.category_id
@@ -103,41 +115,52 @@ const crumbs = computed<Crumb[]>(() => {
       result.push({ label: page.title ?? page.name ?? '', to: route.path, current: true });
       return result;
     }
+    // Single segment, no store page — original slug-derived current crumb.
+    const showCategory = cfg.value.show_category !== false; // default true
+    if (!showCategory) return [];
+    const categoryLabel = (cfg.value.category_label as string | undefined) ?? '';
+    return applyCurrentLabelOverride([
+      {
+        label: categoryLabel || slugToLabel(parts[0]),
+        to: route.path,
+        current: true,
+      },
+    ]);
   }
 
-  // Multi-segment URL — build from path parts
-  const showCategory = cfg.value.show_category !== false; // default true
-  const categoryLabel = (cfg.value.category_label as string | undefined) ?? '';
-  const categorySlug = (cfg.value.category_slug as string | undefined) ?? '';
-
-  const built = parts
-    .map((part, idx): Crumb | null => {
-      if (idx === 0) {
-        if (!showCategory) return null;
-        return {
-          label: categoryLabel || slugToLabel(part),
-          to: categorySlug || '/' + part,
-          current: parts.length === 1,
-        };
+  // Multi-segment permalink for a POST — build crumbs from the STORE, never by
+  // slicing the raw URL. A permalink like `%root%/[%year%/]%category_path%/%slug%`
+  // contains segments (`blog`, `2026`) that have NO backing route; only the Home
+  // link, the category TERM ARCHIVE and the post itself are navigable.
+  const isPost = !!page
+    && (page.type === 'post' || (Array.isArray(page.terms) && page.terms.length > 0));
+  if (page && isPost) {
+    const result: Crumb[] = [];
+    const showCategory = cfg.value.show_category !== false; // default true
+    if (showCategory) {
+      const terms = page.terms ?? [];
+      const category = terms.find(
+        (term) => term.term_type === 'category' && term.id === page.primary_term_id,
+      ) ?? terms.find((term) => term.term_type === 'category');
+      if (category && category.archive_url) {
+        result.push({
+          label: category.name,
+          to: '/' + String(category.archive_url).replace(/^\/+/, ''),
+          current: false,
+        });
       }
-      return {
-        label: slugToLabel(part),
-        to: '/' + parts.slice(0, idx + 1).join('/'),
-        current: idx === parts.length - 1,
-      };
-    })
-    .filter((c): c is Crumb => c !== null);
-
-  // Generic seam: a page/widget may override the CURRENT crumb's display label
-  // for this exact route path (e.g. show a real entity name instead of the
-  // slug-derived label). No override → default behaviour is unchanged.
-  const overrideLabel = getBreadcrumbLabel(route.path);
-  if (overrideLabel) {
-    const current = built.find((crumb) => crumb.current);
-    if (current) current.label = overrideLabel;
+    }
+    result.push({ label: page.title ?? page.name ?? '', to: route.path, current: true });
+    return applyCurrentLabelOverride(result);
   }
 
-  return built;
+  // Multi-segment fallback (no store post data): render ONLY the current crumb
+  // (last segment, slug-derived) as a non-link. Intermediate URL prefixes are
+  // dropped so no crumb can ever link to a non-resolving 404 URL.
+  const lastPart = parts[parts.length - 1];
+  return applyCurrentLabelOverride([
+    { label: slugToLabel(lastPart), to: route.path, current: true },
+  ]);
 });
 </script>
 

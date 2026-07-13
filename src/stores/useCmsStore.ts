@@ -85,7 +85,25 @@ export interface CmsPageItem {
    * `GET /cms/posts/<slug>`. `term_type` is `"category"` or `"tag"`. Used by
    * the post page type to render a tag cloud under the title.
    */
-  terms?: Array<{ id: string; term_type: string; slug: string; name: string; parent_id?: string | null }>;
+  terms?: Array<{
+    id: string;
+    term_type: string;
+    slug: string;
+    name: string;
+    parent_id?: string | null;
+    /**
+     * Runtime-only navigable archive URL for the term (e.g. `"category/uncategorized"`),
+     * returned by the backend `_with_terms` serializer. The breadcrumb links the
+     * category crumb to `'/' + archive_url` (resolved by the `/:slug(.+)` catch-all).
+     */
+    archive_url?: string;
+  }>;
+  /**
+   * The post's primary category term id (returned at runtime alongside `terms`).
+   * The breadcrumb prefers the term whose `id` matches this when a post carries
+   * multiple category terms.
+   */
+  primary_term_id?: string | null;
   /**
    * S77 — generic core tags / custom fields appended by the backend serializer
    * (`append_tags_and_custom_fields`), ALONGSIDE the legacy `terms` taxonomy.
