@@ -149,4 +149,50 @@ describe('useCmsStore — catch-all term-archive resolution (page → post → t
     expect(calledUrls.some((u) => String(u).startsWith('/cms/terms/'))).toBe(false);
     expect(store.currentPage).toBeNull();
   });
+
+  describe('prefetch skips term-archive slugs (no dead 404s for tag/category pills)', () => {
+    it('prefetchPage makes NO post request for a tag/ or category/ slug', async () => {
+      // Every tag pill on a post is an <a href="/tag/x"> the link-prefetcher
+      // warms. A tag is never a post, so resolving it as one only ever fired
+      // two dead 404s (/cms/posts/tag/x and ?type=post). Prefetch must skip it.
+      getMock.mockImplementation(async () => {
+        throw new Error('prefetch must not call the API for a term-archive slug');
+      });
+
+      const store = useCmsStore();
+      await store.prefetchPage('tag/gdpr');
+      await store.prefetchPage('category/backend');
+
+      expect(getMock).not.toHaveBeenCalled();
+    });
+
+    it('leaves a term slug uncached so a real click still resolves it', async () => {
+      getMock.mockImplementation(async () => {
+        throw new Error('prefetch must not call the API for a term-archive slug');
+      });
+
+      const store = useCmsStore();
+      await store.prefetchPage('tag/gdpr');
+
+      // No negative cache entry: the slug is absent, so fetchPage on click will
+      // run the normal page → post → term resolution rather than a cached miss.
+      expect('tag/gdpr' in store.pageCache).toBe(false);
+    });
+
+    it('still prefetches a normal post slug (regression guard)', async () => {
+      getMock.mockImplementation(async (url: string) => {
+        if (url === '/cms/posts/blog/2026/hello') {
+          return { id: 'p1', type: 'post', slug: 'blog/2026/hello', title: 'Hello',
+            content_json: {}, layout_id: null, style_id: null };
+        }
+        return {};
+      });
+
+      const store = useCmsStore();
+      await store.prefetchPage('blog/2026/hello');
+
+      expect(getMock).toHaveBeenCalledWith('/cms/posts/blog/2026/hello', undefined);
+      expect(store.pageCache['blog/2026/hello']?.page?.title).toBe('Hello');
+    });
+  });
 });

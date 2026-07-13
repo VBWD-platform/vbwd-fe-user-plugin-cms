@@ -385,6 +385,13 @@ export const useCmsStore = defineStore('cms-user', {
      */
     async prefetchPage(slug: string) {
       if (!slug || slug in this.pageCache || prefetchInFlight.has(slug)) return;
+      // A term-archive slug (`category/…` / `tag/…`) is NOT a post: warming it
+      // via the post endpoint only ever fired two dead 404s per tag pill
+      // (/cms/posts/tag/x and its ?type=post retry). Prefetch is best-effort, so
+      // skip these entirely — a real click still resolves them through the
+      // page → post → term precedence in `fetchPage`. We deliberately do NOT
+      // negative-cache, so the slug stays resolvable on navigation.
+      if (TERM_ARCHIVE_SLUG_PATTERN.test(slug)) return;
       prefetchInFlight.add(slug);
       try {
         const post = await this._fetchPostRaw(slug);
