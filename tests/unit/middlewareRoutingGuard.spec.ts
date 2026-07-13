@@ -268,6 +268,81 @@ describe('cmsMiddlewareRoutingGuard', () => {
     });
   });
 
+  describe('redirect chain resolution + loop safety', () => {
+    it('resolves a multi-hop chain to its final target', async () => {
+      // /a → /b → /c, where /c matches no rule. The guard must follow the
+      // whole chain in one navigation and return the final /c, not /b.
+      const api = makeApi([
+        { name: 'a', is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: '/a', target_slug: '/b', redirect_code: 301,
+          is_rewrite: false, layer: 'middleware' },
+        { name: 'b', is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: '/b', target_slug: '/c', redirect_code: 301,
+          is_rewrite: false, layer: 'middleware' },
+      ]);
+      const guard = createCmsMiddlewareRoutingGuard(api);
+
+      expect(await guard(loc('/a', 'cms-page'), FROM)).toBe('/c');
+    });
+
+    it('breaks a 2-cycle and does NOT redirect (renders the requested path)', async () => {
+      // The prod incident: a permalink-double rule forwards the real slug to a
+      // doubled path, and another rule sends the doubled path back — an
+      // infinite A→B→A loop that hung the SPA. The guard must detect the cycle
+      // and return undefined so the originally-requested post renders.
+      const real = '/blog/2026/vbwd/ship-x';
+      const doubled = '/blog/2026/vbwd/blog/2026/vbwd/ship-x';
+      const api = makeApi([
+        { name: 'fwd', is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: real, target_slug: doubled, redirect_code: 301,
+          is_rewrite: false, layer: 'middleware' },
+        { name: 'back', is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: doubled, target_slug: real, redirect_code: 301,
+          is_rewrite: false, layer: 'middleware' },
+      ]);
+      const guard = createCmsMiddlewareRoutingGuard(api);
+
+      expect(await guard(loc(real, 'cms-page'), FROM)).toBeUndefined();
+    });
+
+    it('caps a runaway chain via maxRedirectHops (no hang)', async () => {
+      // A long chain of distinct rules /s0→/s1→…→/s9 never repeats a path, so
+      // the visited-set cycle check cannot catch it. The hop cap must abort and
+      // fail safe (undefined) rather than follow the chain forever — this is
+      // the accumulated-doubled-rules shape seen on prod.
+      const api = makeApi(
+        Array.from({ length: 10 }, (_, i) => ({
+          name: `s${i}`, is_active: true, priority: 0, match_type: 'path_exact',
+          match_value: `/s${i}`, target_slug: `/s${i + 1}`, redirect_code: 301,
+          is_rewrite: false, layer: 'middleware',
+        })),
+      );
+      const guard = createCmsMiddlewareRoutingGuard(api, { maxRedirectHops: 5 });
+
+      expect(await guard(loc('/s0', 'cms-page'), FROM)).toBeUndefined();
+    });
+
+    it('de-duplicates concurrent in-flight fetches (single request)', async () => {
+      // Before this fix, cachedRules was only populated after the await
+      // resolved, so navigations firing while a request was pending each
+      // issued a fresh GET — the pile of pending `middleware` XHRs on prod.
+      let resolveFetch: (v: unknown) => void = () => {};
+      const api = {
+        get: vi.fn(
+          () => new Promise((resolve) => { resolveFetch = resolve; }),
+        ),
+      };
+      const guard = createCmsMiddlewareRoutingGuard(api);
+
+      const p1 = guard(loc('/a', 'cms-page'), FROM);
+      const p2 = guard(loc('/b', 'cms-page'), FROM);
+      resolveFetch([]);
+      await Promise.all([p1, p2]);
+
+      expect(api.get).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('caching + resilience', () => {
     it('fetches once across multiple navigations within TTL', async () => {
       const api = makeApi([]);
