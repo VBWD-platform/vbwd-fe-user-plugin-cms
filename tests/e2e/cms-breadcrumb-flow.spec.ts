@@ -20,7 +20,6 @@ const POST_PATH = '/blog/2026/vbwd/drop-a-file-plugin-model-without-touching-cor
 const POST_TITLE = "Add a Feature Without Touching Core: VBWD's Drop-a-File Plugin Model";
 
 const NAV = 'nav.vbwd-breadcrumb';
-const LINK = '.vbwd-breadcrumb__link';
 const CURRENT = '.vbwd-breadcrumb__current';
 const POST_CARD = '[data-testid="post-card"]';
 
