@@ -119,6 +119,21 @@ export interface CmsPageItem {
    * description without a second fetch. Absent on every real page/post.
    */
   term_archive?: CmsTermArchiveContext;
+  /**
+   * Present ONLY on a synthetic PREFIX-archive page (the WordPress-style
+   * `/blog/2026` / `/blog/2026/news` listing that has no backing `cms_post`).
+   * Set by `_resolvePrefixArchive` from `GET /cms/archive/<prefix>`; the
+   * breadcrumb provider keys off `type === 'archive'` + this prefix, and the
+   * shared archive widget lists {@link items}. Absent on every real page/post.
+   */
+  archive_prefix?: string;
+  /** The posts listed by a prefix archive (see {@link archive_prefix}). */
+  items?: CmsArchiveItem[];
+  /** Pagination echoed by the prefix-archive endpoint (first page for now). */
+  archive_total?: number;
+  archive_page?: number;
+  archive_per_page?: number;
+  archive_pages?: number;
 }
 
 /** The resolved term backing a dynamic term archive (see {@link CmsPageItem}). */
@@ -127,6 +142,29 @@ export interface CmsTermArchiveContext {
   slug: string;
   name: string;
   description?: string | null;
+}
+
+/** A single post summary as listed by a prefix archive. */
+export interface CmsArchiveItem {
+  id: string;
+  type: string;
+  slug: string;
+  title: string;
+  excerpt?: string | null;
+  published_at?: string | null;
+  og_image_url?: string | null;
+  [key: string]: unknown;
+}
+
+/** The `GET /cms/archive/<prefix>` response envelope. */
+export interface CmsArchiveResponse {
+  prefix: string;
+  title: string;
+  items: CmsArchiveItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
 }
 
 /**
@@ -470,8 +508,72 @@ export const useCmsStore = defineStore('cms-user', {
         if (status !== 404 || previewToken) throw e;
         const termArchive = await this._resolveTermArchive(slug);
         if (termArchive) return termArchive;
+        // FINAL fallback: a WordPress-style prefix archive (`/blog/2026`,
+        // `/blog/2026/news`, `/blog`) that lists every published post whose slug
+        // starts with `<slug>/`. Only reached after page + post + term all 404.
+        const prefixArchive = await this._resolvePrefixArchive(slug);
+        if (prefixArchive) return prefixArchive;
         throw e;
       }
+    },
+
+    /**
+     * Resolve a slug to a synthetic PREFIX-archive page via
+     * `GET /cms/archive/<path>`. Returns `null` when no published post lives
+     * under the prefix (endpoint 404) so the caller falls through to the normal
+     * not-found handling. On 200 the synthetic page is bound to the shared
+     * `terms-archive` layout (the same one that renders term archives) and marked
+     * `type: 'archive'` so the breadcrumb provider and archive widget recognise
+     * it. Non-404 failures are treated as "not an archive" (null) too.
+     */
+    async _resolvePrefixArchive(path: string): Promise<CachedCmsPage | null> {
+      let archive: CmsArchiveResponse;
+      try {
+        archive = await api.get<CmsArchiveResponse>(`/cms/archive/${path}`);
+      } catch {
+        return null;
+      }
+
+      const [layout, css] = await Promise.all([
+        this._fetchLayoutBySlugRaw(TERMS_ARCHIVE_LAYOUT_SLUG),
+        this._fetchDefaultStyleCss(),
+      ]);
+      return { page: this._buildPrefixArchivePage(path, archive, layout), layout, css };
+    },
+
+    /** Build the synthetic CmsPageItem for a resolved prefix archive. */
+    _buildPrefixArchivePage(
+      path: string,
+      archive: CmsArchiveResponse,
+      layout: CmsLayout | null,
+    ): CmsPageItem {
+      return {
+        id: `prefix-archive:${path}`,
+        slug: path,
+        type: 'archive',
+        title: archive.title,
+        name: archive.title,
+        content_html: '',
+        content_json: {},
+        language: 'en',
+        resolved_layout_id: layout?.id ?? null,
+        sort_order: 0,
+        meta_title: archive.title,
+        meta_description: null,
+        og_title: null,
+        og_description: null,
+        og_image_url: null,
+        canonical_url: null,
+        robots: 'index,follow',
+        schema_json: null,
+        updated_at: '',
+        archive_prefix: path,
+        items: archive.items ?? [],
+        archive_total: archive.total,
+        archive_page: archive.page,
+        archive_per_page: archive.per_page,
+        archive_pages: archive.pages,
+      };
     },
 
     /**

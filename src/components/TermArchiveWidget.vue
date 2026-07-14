@@ -1,7 +1,7 @@
 <template>
   <div class="term-archive">
     <p
-      v-if="!termSlug"
+      v-if="showPrompt"
       class="term-archive__hint"
       data-testid="term-archive-prompt"
     >
@@ -14,10 +14,10 @@
           class="term-archive__heading"
           data-testid="term-archive-heading"
         >
-          {{ termName }}
+          {{ heading }}
         </h1>
         <p
-          v-if="termDescription"
+          v-if="termDescription && !isArchiveMode"
           class="term-archive__description"
           data-testid="term-archive-description"
         >
@@ -26,7 +26,7 @@
       </header>
 
       <p
-        v-if="posts.loading.value"
+        v-if="listLoading"
         class="term-archive__loading"
         data-testid="term-archive-loading"
       >
@@ -34,11 +34,14 @@
       </p>
 
       <p
-        v-else-if="!posts.items.value.length"
+        v-else-if="!listItems.length"
         class="term-archive__empty"
         data-testid="term-archive-empty"
       >
-        <template v-if="isTag">
+        <template v-if="isArchiveMode">
+          {{ $t('cms.termArchive.emptyArchive', 'No posts in this archive yet.') }}
+        </template>
+        <template v-else-if="isTag">
           {{ $t('cms.termArchive.emptyTag', 'No posts in this tag yet.') }}
         </template>
         <template v-else>
@@ -48,12 +51,12 @@
 
       <template v-else>
         <PostList
-          :posts="posts.items.value"
+          :posts="listItems"
           :display="display"
         />
 
         <div
-          v-if="paginate && posts.pages.value > 1"
+          v-if="paginate && !isArchiveMode && posts.pages.value > 1"
           class="term-archive__pagination"
         >
           <button
@@ -178,6 +181,36 @@ const termName = computed<string>(
 );
 const termDescription = computed<string>(
   () => resolvedTerm.value?.description ?? '',
+);
+
+// PREFIX-archive mode: a WordPress-style `/blog/2026` listing (no `category/`|
+// `tag/` term). The store's `_resolvePrefixArchive` parked the resolved title +
+// posts on `currentPage`, so this shared widget lists them WITHOUT a second
+// fetch (first page only for now). This is what makes the ONE `terms-archive`
+// layout render BOTH term archives and prefix archives, route-driven.
+const archivePage = computed(() => {
+  if (routeTerm.value) return null;
+  const page = store.currentPage;
+  return page && page.type === 'archive' && page.archive_prefix ? page : null;
+});
+const isArchiveMode = computed<boolean>(() => archivePage.value !== null);
+
+/** Show the "no term selected" hint only when neither mode is active. */
+const showPrompt = computed<boolean>(() => !termSlug.value && !isArchiveMode.value);
+
+/** Heading: the archive title in archive mode, else the term name. */
+const heading = computed<string>(() =>
+  isArchiveMode.value ? archivePage.value?.title ?? '' : termName.value,
+);
+
+/** Posts to list: parked archive items in archive mode, else the term fetch. */
+const listItems = computed(() =>
+  isArchiveMode.value ? archivePage.value?.items ?? [] : posts.items.value,
+);
+
+/** Archive items are pre-fetched by the store, so never in a loading state. */
+const listLoading = computed<boolean>(() =>
+  isArchiveMode.value ? false : posts.loading.value,
 );
 
 function fetchArchive(pageNumber: number): void {

@@ -8,6 +8,14 @@ vi.mock('@/api', () => ({
   api: { get: vi.fn(), post: vi.fn() },
 }));
 
+// install() registers a breadcrumb provider through the core seam. Keep every
+// real fe-core export and add the (stale-in-this-tree) provider registry hook so
+// install() runs without touching the actual registry.
+vi.mock('vbwd-view-component', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, registerBreadcrumbProvider: vi.fn(), getBreadcrumbProviders: () => [] };
+});
+
 import { cmsPlugin } from '../../index';
 
 interface CapturedRoute {

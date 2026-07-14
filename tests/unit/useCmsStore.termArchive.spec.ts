@@ -124,6 +124,8 @@ describe('useCmsStore — catch-all term-archive resolution (page → post → t
     getMock.mockImplementation(async (url: string) => {
       if (url === '/cms/posts/category/ghost') throw notFound();
       if (url === '/cms/terms/category/ghost') throw notFound();
+      // The final prefix-archive fallback also misses for a ghost slug.
+      if (String(url).startsWith('/cms/archive/')) throw notFound();
       if (String(url).startsWith('/cms/categories')) return { items: [] };
       return {};
     });
@@ -138,6 +140,8 @@ describe('useCmsStore — catch-all term-archive resolution (page → post → t
   it('a non-term slug that 404s never attempts term resolution', async () => {
     getMock.mockImplementation(async (url: string) => {
       if (url === '/cms/posts/about/team') throw notFound();
+      // The prefix-archive fallback also misses (no posts under `about/team/`).
+      if (String(url).startsWith('/cms/archive/')) throw notFound();
       if (String(url).startsWith('/cms/categories')) return { items: [] };
       return {};
     });

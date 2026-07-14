@@ -1,64 +1,49 @@
 /**
- * CmsBreadcrumb labels the current (last) crumb from the slug by default, but
- * uses a registered override label when one is set for the current route path.
- * Default (no override) behaviour must be unchanged.
+ * The CmsBreadcrumb widget is now a thin adapter: it renders the core
+ * `<VbwdBreadcrumb>` (which asks the registered breadcrumb providers for the
+ * trail) and maps its own `config` (separator / css / max_label_length) onto
+ * the core component's props. The old URL-slicing crumb logic is gone —
+ * the CMS breadcrumb PROVIDER now owns trail construction.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mount, RouterLinkStub, type VueWrapper } from '@vue/test-utils';
+import { describe, it, expect, vi } from 'vitest';
+import { shallowMount } from '@vue/test-utils';
 
-const routePath = { value: '/category/backend/some-package' };
-
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ get path() { return routePath.value; } }),
+// Stub the core component so we can assert the props the widget passes through.
+// Hoisted so the (hoisted) vi.mock factory can reference it safely.
+const { VbwdBreadcrumbStub } = vi.hoisted(() => ({
+  VbwdBreadcrumbStub: {
+    name: 'VbwdBreadcrumb',
+    props: ['separator', 'css', 'maxLabelLength'],
+    template: '<nav class="vbwd-breadcrumb-stub" />',
+  },
 }));
 
-vi.mock('../../src/stores/useCmsStore', () => ({
-  useCmsStore: () => ({ currentPage: null, categories: [] }),
-}));
+vi.mock('vbwd-view-component', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, VbwdBreadcrumb: VbwdBreadcrumbStub };
+});
 
 import CmsBreadcrumb from '../../src/components/CmsBreadcrumb.vue';
-import {
-  setBreadcrumbLabel,
-  clearBreadcrumbLabel,
-} from '../../src/composables/useBreadcrumbLabel';
 
-const mountedWrappers: VueWrapper[] = [];
-
-function mountBreadcrumb() {
-  const wrapper = mount(CmsBreadcrumb, {
-    global: { stubs: { RouterLink: RouterLinkStub } },
-  });
-  mountedWrappers.push(wrapper);
-  return wrapper;
-}
-
-describe('CmsBreadcrumb — current-crumb override', () => {
-  beforeEach(() => {
-    routePath.value = '/category/backend/some-package';
-    clearBreadcrumbLabel('/category/backend/some-package');
+describe('CmsBreadcrumb widget', () => {
+  it('renders the core VbwdBreadcrumb', () => {
+    const wrapper = shallowMount(CmsBreadcrumb, {
+      global: { stubs: { VbwdBreadcrumb: VbwdBreadcrumbStub } },
+    });
+    expect(wrapper.findComponent(VbwdBreadcrumbStub).exists()).toBe(true);
   });
 
-  afterEach(() => {
-    while (mountedWrappers.length) mountedWrappers.pop()?.unmount();
-  });
+  it('maps config.separator / css / max_label_length onto the core props', () => {
+    const wrapper = shallowMount(CmsBreadcrumb, {
+      props: {
+        config: { separator: '›', css: '.x{}', max_label_length: 24 },
+      },
+      global: { stubs: { VbwdBreadcrumb: VbwdBreadcrumbStub } },
+    });
 
-  it('labels the current crumb from the slug when no override is set', () => {
-    const wrapper = mountBreadcrumb();
-    expect(wrapper.find('.cms-breadcrumb__current').text()).toBe('Some Package');
-  });
-
-  it('uses the override label for the current crumb when one is set for the path', async () => {
-    const wrapper = mountBreadcrumb();
-    setBreadcrumbLabel('/category/backend/some-package', 'Tarot');
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find('.cms-breadcrumb__current').text()).toBe('Tarot');
-  });
-
-  it('ignores an override registered for a different path', async () => {
-    const wrapper = mountBreadcrumb();
-    setBreadcrumbLabel('/category/backend/other', 'Tarot');
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find('.cms-breadcrumb__current').text()).toBe('Some Package');
-    clearBreadcrumbLabel('/category/backend/other');
+    const core = wrapper.findComponent(VbwdBreadcrumbStub);
+    expect(core.props('separator')).toBe('›');
+    expect(core.props('css')).toBe('.x{}');
+    expect(core.props('maxLabelLength')).toBe(24);
   });
 });

@@ -581,6 +581,12 @@ describe('CmsPage public renderer (unified cms_post cutover)', () => {
         error.response = { status: 404 };
         throw error;
       }
+      // The final prefix-archive fallback also misses for an unknown slug.
+      if (url.startsWith('/cms/archive/')) {
+        const error = new Error('not found') as Error & { response?: { status: number } };
+        error.response = { status: 404 };
+        throw error;
+      }
       if (url.startsWith('/cms/categories')) return { items: [] };
       return {};
     });

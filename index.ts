@@ -1,6 +1,9 @@
 import { defineAsyncComponent } from 'vue';
 import type { IPlugin, IPlatformSDK } from 'vbwd-view-component';
+import { registerBreadcrumbProvider } from 'vbwd-view-component';
 import { registerCmsVueComponent } from './src/registry/vueComponentRegistry';
+import { useCmsStore } from './src/stores/useCmsStore';
+import { buildCmsBreadcrumbTrail } from './src/composables/useCmsBreadcrumbTrail';
 import { registerPostContentType } from './src/registry/contentTypeRegistry';
 import {
   registerCmsPageType,
@@ -106,6 +109,28 @@ export const cmsPlugin: IPlugin = {
     import('./src/components/SuperHeader.vue').then((m) => {
       registerCmsVueComponent('SuperHeader', m.default);
     });
+
+    // Register the CMS breadcrumb PROVIDER with the core. The core
+    // `VbwdBreadcrumb` component iterates every registered provider (first
+    // non-null trail wins) and renders it. Ours builds the Home → Blog → year →
+    // category → title trail for the blog/post permalink space and prefix
+    // archives, and a minimal Home → title trail for any other CMS page; it
+    // returns null for non-CMS routes so other providers can answer. `order:
+    // 100` leaves room for lower-order plugin providers (tarif/ghrm/booking) to
+    // win on their own routes. `currentPage` is read LAZILY inside resolve so
+    // the store's pinia is active by render time. Guarded so an older core build
+    // without the breadcrumb seam degrades gracefully (no breadcrumbs) rather
+    // than crashing the whole CMS plugin install.
+    if (typeof registerBreadcrumbProvider === 'function') {
+      registerBreadcrumbProvider({
+        order: 100,
+        resolve: (route) =>
+          buildCmsBreadcrumbTrail(route, useCmsStore().currentPage, {
+            rootName: 'Home',
+            rootTo: '/',
+          }),
+      });
+    }
 
     // S47.3 — built-in `richtext` content-type renderer (placement: inline).
     // A post with no blocks renders its content_html as one implicit richtext

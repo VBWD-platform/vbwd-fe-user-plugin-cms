@@ -34,7 +34,8 @@
       "prompt": "No term selected.",
       "loading": "Loading…",
       "emptyCategory": "No posts in this category yet.",
-      "emptyTag": "No posts in this tag yet."
+      "emptyTag": "No posts in this tag yet.",
+      "emptyArchive": "No posts in this archive yet."
     },
     "addonCatalog": {
       "loading": "Loading add-ons…",
