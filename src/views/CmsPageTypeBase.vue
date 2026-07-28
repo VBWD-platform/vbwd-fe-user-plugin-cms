@@ -13,6 +13,7 @@
   <article
     v-else
     class="cms-page__content"
+    :style="contentPalette"
   >
     <h1 class="cms-page__title">
       {{ pageTitle }}
@@ -61,6 +62,7 @@ import { useCmsStore } from '../stores/useCmsStore';
 import CmsLayoutRenderer from '../components/CmsLayoutRenderer.vue';
 import { injectSeoMeta } from '../composables/useSeoHandoff';
 import { buildHeadSnippetNodes } from '../utils/headSnippet';
+import { useCmsContentPalette } from '../composables/useCmsContentPalette';
 
 const props = defineProps<{
   page: CmsPageItem;
@@ -70,6 +72,12 @@ const props = defineProps<{
 }>();
 
 const store = useCmsStore();
+
+// Re-assert the CMS theme's own `--color-*` palette on the (layout-less)
+// article wrapper so the `.vbwd-page` content resolves theme tokens from the
+// CMS style rather than the theme-switcher's `<html>` inline default. The
+// layout render path applies the same palette via CmsLayoutRenderer.
+const contentPalette = useCmsContentPalette();
 
 // Unified cms_post exposes `title`; legacy cms_page exposed `name`. Prefer
 // `title` and fall back to `name` so both shapes render the same heading.

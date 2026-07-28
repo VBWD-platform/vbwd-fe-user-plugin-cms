@@ -3,6 +3,7 @@
     ref="cmsLayoutEl"
     class="cms-layout"
     :class="`cms-layout--${layout.slug}`"
+    :style="contentPalette"
   >
     <template
       v-for="area in layout.areas"
@@ -50,12 +51,19 @@ import type {
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 import { useCmsSpaLinks } from '../composables/useCmsSpaLinks';
 import { useCmsLinkPrefetch } from '../composables/useCmsLinkPrefetch';
+import { useCmsContentPalette } from '../composables/useCmsContentPalette';
 
 // Root of the whole layout (widgets + main content). Local CMS links anywhere
 // inside become instant: SPA-navigated on click, prefetched when visible.
 const cmsLayoutEl = ref<HTMLElement | null>(null);
 useCmsSpaLinks(cmsLayoutEl);
 useCmsLinkPrefetch(cmsLayoutEl);
+
+// Re-assert the CMS theme's own `--color-*` palette on this wrapper so the
+// `.vbwd-page` content subtree resolves theme tokens (e.g. --color-border)
+// from the CMS style rather than inheriting the theme-switcher's `<html>`
+// inline default. Theme-aware (carries whatever the resolved style declares).
+const contentPalette = useCmsContentPalette();
 
 const props = defineProps<{
   layout: CmsLayout;
