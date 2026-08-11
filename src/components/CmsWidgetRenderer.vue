@@ -39,7 +39,20 @@
       {{ widgetCss }}
     </component>
     <!-- eslint-disable-next-line vue/no-v-html -->
-    <div v-html="widgetHtml" />
+    <div
+      v-html="widgetHtml"
+      @click="onContainerClick"
+    />
+
+    <!-- Body images open in the shared zoom/pan viewer — this is the path a
+         CMS post body actually takes (layout -> html widget), so without it
+         only entity pages would be zoomable. -->
+    <ImageLightbox
+      v-if="active"
+      v-model="zoomIndex"
+      :image="active"
+      @close="close"
+    />
   </div>
 
   <!-- Menu widget: render as nav (supports source_css for full burger-menu styling) -->
@@ -189,6 +202,8 @@ import type { Component } from 'vue';
 import type { CmsWidgetData, CmsMenuItemData } from '../stores/useCmsStore';
 import { resolveCmsVueComponent } from '../registry/vueComponentRegistry';
 import { buildCustomCodeScripts } from '../utils/customCode';
+import ImageLightbox from './ImageLightbox.vue';
+import { useImageZoom } from '../composables/useImageZoom';
 
 // Cart badge support for menu widgets with show_cart config
 const showCart = computed(() => {
@@ -216,6 +231,7 @@ const props = defineProps<{
 // ── HTML widget helpers ────────────────────────────────────────────────────────
 
 const htmlWidgetEl = ref<HTMLElement | null>(null);
+
 
 // Raw decoded HTML blob (base64 in content_json.content) before any processing.
 const decodedHtml = computed(() => {
@@ -245,6 +261,13 @@ const widgetHtml = computed(() => {
   template.content.querySelectorAll('script').forEach(script => script.remove());
   return template.innerHTML;
 });
+
+// Images inside an html widget open in the shared zoom/pan viewer. `widgetHtml`
+// is the reactive source, so re-marking follows a widget re-render.
+const { active, zoomIndex, onContainerClick, close } = useImageZoom(
+  htmlWidgetEl,
+  computed(() => widgetHtml.value),
+);
 
 // The script nodes this widget appended (so re-render / unmount can remove
 // exactly its own), plus the html currently injected (idempotency key guarding
