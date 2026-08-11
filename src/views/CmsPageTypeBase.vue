@@ -19,10 +19,22 @@
     </h1>
     <!-- eslint-disable vue/no-v-html -->
     <div
+      ref="bodyEl"
       class="cms-page__body"
       v-html="bodyHtml"
+      @click="onContainerClick"
     />
     <!-- eslint-enable vue/no-v-html -->
+
+    <!-- Body images open in the shared zoom/pan viewer. This is the path a post
+         or page body actually takes — neither the html widget nor the richtext
+         block — so without it post images stay un-zoomable. -->
+    <ImageLightbox
+      v-if="active"
+      v-model="zoomIndex"
+      :image="active"
+      @close="close"
+    />
   </article>
 
   <!-- S77 — generic core tags + custom fields, ALONGSIDE the legacy taxonomy.
@@ -54,13 +66,15 @@
  * `headerHtml` fragment that is prepended INTO the content body (inside the
  * layout's content area — never above the page chrome).
  */
-import { computed, watch, onUnmounted } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { TagChips, CustomFieldsDisplay } from 'vbwd-view-component';
 import type { CmsPageItem, CmsLayout } from '../stores/useCmsStore';
 import { useCmsStore } from '../stores/useCmsStore';
 import CmsLayoutRenderer from '../components/CmsLayoutRenderer.vue';
 import { injectSeoMeta } from '../composables/useSeoHandoff';
 import { buildHeadSnippetNodes } from '../utils/headSnippet';
+import ImageLightbox from '../components/ImageLightbox.vue';
+import { useImageZoom } from '../composables/useImageZoom';
 
 const props = defineProps<{
   page: CmsPageItem;
@@ -169,6 +183,12 @@ const renderedHtml = computed(() => {
 // fragment (e.g. a post's tag chips) prepended to the rendered content. This is
 // injected INTO the content area — it never renders above the page chrome.
 const bodyHtml = computed(() => (props.headerHtml ?? '') + renderedHtml.value);
+
+// Images in the rendered body open in the shared viewer (same one the html
+// widget and richtext block use), so behaviour cannot fork across the three
+// places CMS body copy reaches a page.
+const bodyEl = ref<HTMLElement | null>(null);
+const { active, zoomIndex, onContainerClick, close } = useImageZoom(bodyEl, bodyHtml);
 
 // ── Page style application ─────────────────────────────────────────────────
 
