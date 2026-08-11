@@ -55,6 +55,9 @@ export function useImageZoom(container: Ref<HTMLElement | null>, source: Ref<unk
     const img = target as HTMLImageElement;
     if (!isZoomable(img)) return;
     event.preventDefault();
+    // Containers nest (layout body > html widget), and both delegate. Stop here
+    // so one click opens exactly one viewer.
+    event.stopPropagation();
     open(img);
   }
 

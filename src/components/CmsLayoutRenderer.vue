@@ -20,6 +20,7 @@
             ref="contentAreaEl"
             class="cms-page__body"
             v-html="contentBlockHtml(area.name)"
+            @click="onContainerClick"
           />
         </div>
       </main>
@@ -36,11 +37,19 @@
 
       <!-- Declared area with no widget assignment: skip silently -->
     </template>
+
+    <!-- Body images open in the shared zoom/pan viewer. -->
+    <ImageLightbox
+      v-if="active"
+      v-model="zoomIndex"
+      :image="active"
+      @close="close"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue';
+import { computed, ref, watch, nextTick, onMounted } from 'vue';
 import type {
   CmsLayout,
   CmsWidgetData,
@@ -50,6 +59,8 @@ import type {
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 import { useCmsSpaLinks } from '../composables/useCmsSpaLinks';
 import { useCmsLinkPrefetch } from '../composables/useCmsLinkPrefetch';
+import ImageLightbox from './ImageLightbox.vue';
+import { useImageZoom } from '../composables/useImageZoom';
 
 // Root of the whole layout (widgets + main content). Local CMS links anywhere
 // inside become instant: SPA-navigated on click, prefetched when visible.
@@ -77,6 +88,17 @@ function contentBlockHtml(areaName: string): string {
 }
 
 const contentAreaEl = ref<HTMLElement | HTMLElement[] | null>(null);
+
+// Body images open in the shared zoom/pan viewer. This is the content area a
+// laid-out page renders through — CmsPageTypeBase only reaches its own article
+// branch when a page has NO layout, so live posts arrive here instead.
+const contentAreaRoot = computed<HTMLElement | null>(() =>
+  Array.isArray(contentAreaEl.value) ? contentAreaEl.value[0] ?? null : contentAreaEl.value,
+);
+const { active, zoomIndex, onContainerClick, close } = useImageZoom(
+  contentAreaRoot,
+  computed(() => props.contentHtml ?? ''),
+);
 
 function runScripts(container: HTMLElement) {
   container.querySelectorAll('script').forEach(old => {
