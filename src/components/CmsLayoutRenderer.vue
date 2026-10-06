@@ -27,11 +27,15 @@
 
       <!-- Widget area -->
       <div
-        v-else-if="widgetFor(area.name)"
+        v-else-if="widgetsFor(area.name).length > 0"
         :class="`cms-area cms-area--${area.type}`"
       >
         <div class="container">
-          <CmsWidgetRenderer :widget="widgetFor(area.name)!" />
+          <CmsWidgetRenderer
+            v-for="(widget, widgetIndex) in widgetsFor(area.name)"
+            :key="`${widget.id}-${widgetIndex}`"
+            :widget="widget"
+          />
         </div>
       </div>
 
@@ -55,6 +59,7 @@ import type {
   CmsWidgetData,
   CmsPageWidgetAssignment,
   CmsPageWidgetOverride,
+  CmsWidgetAssignment,
 } from '../stores/useCmsStore';
 import CmsWidgetRenderer from './CmsWidgetRenderer.vue';
 import { useCmsSpaLinks } from '../composables/useCmsSpaLinks';
@@ -181,16 +186,31 @@ function applyPageOverride(
   return widget;
 }
 
-function widgetFor(areaName: string): CmsWidgetData | undefined {
-  // Page-level assignments override layout-level for the same area. A page
-  // assignment may also carry its OWN per-page override, applied per widget
+type AreaAssignment = CmsWidgetAssignment | CmsPageWidgetAssignment;
+
+/** Assignments of one area that carry a widget, ascending sort_order (stable: ties keep API order). */
+function sortedAreaAssignments<Assignment extends AreaAssignment>(
+  assignments: Assignment[] | undefined,
+  areaName: string,
+): Assignment[] {
+  return (assignments ?? [])
+    .filter(assignment => assignment.area_name === areaName && assignment.widget)
+    .sort((left, right) => left.sort_order - right.sort_order);
+}
+
+function widgetsFor(areaName: string): CmsWidgetData[] {
+  // Page-level assignments replace ALL layout-level ones for the same area. A
+  // page assignment may also carry its OWN per-page override, applied per widget
   // type for this page only (the layout-level path below is unaffected).
-  const pageAssignment = props.pageAssignments?.find(a => a.area_name === areaName);
-  if (pageAssignment?.widget) {
-    return applyPageOverride(pageAssignment.widget as CmsWidgetData, pageAssignment.config_override);
+  const pageAssignments = sortedAreaAssignments(props.pageAssignments, areaName);
+  if (pageAssignments.length > 0) {
+    return pageAssignments.map(assignment =>
+      applyPageOverride(assignment.widget as CmsWidgetData, assignment.config_override),
+    );
   }
-  const layoutAssignment = props.layout.assignments?.find(a => a.area_name === areaName);
-  return layoutAssignment?.widget as CmsWidgetData | undefined;
+  return sortedAreaAssignments(props.layout.assignments, areaName).map(
+    assignment => assignment.widget as CmsWidgetData,
+  );
 }
 </script>
 

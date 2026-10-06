@@ -36,15 +36,10 @@ const resultCard = '[data-testid="post-card"]';
 
 // The SearchResults widget renders its terminal state (matches / no-results)
 // only after the FTS request resolves, which can be slow under load — wait
-// generously rather than on the default 5 s so the specs are not flaky.
+// generously rather than on the default 5 s so the specs are not flaky. The
+// specs wait on the rendered state, not on a browser `/api/v1/cms/search`
+// call: the themed page runs the search on the server (S152-11c).
 const SETTLE_TIMEOUT = 20_000;
-
-function searchResponse(page: import('@playwright/test').Page) {
-  return page.waitForResponse(
-    (response) => response.url().includes('/api/v1/cms/search') && response.status() === 200,
-    { timeout: SETTLE_TIMEOUT },
-  );
-}
 
 test.describe('S121 — CMS classic search results flow (search layout)', () => {
   test.beforeAll(async () => {
@@ -67,12 +62,10 @@ test.describe('S121 — CMS classic search results flow (search layout)', () => 
   test('box submit navigates to /search?q=… and SearchResults renders matches', async ({ page }) => {
     await page.goto('/search', { waitUntil: 'networkidle' });
 
-    const settled = searchResponse(page);
     await page.locator(box).first().fill(SEARCH_TOKEN);
     await page.locator(box).first().press('Enter');
 
     await expect(page).toHaveURL(new RegExp(`/search\\?q=${SEARCH_TOKEN}`));
-    await settled;
     // scope=both on the seeded results widget → published page + post match.
     await expect(page.locator(resultCard).first()).toBeVisible({ timeout: SETTLE_TIMEOUT });
     const cardText = (await page.locator(resultCard).allInnerTexts()).join(' | ');
@@ -84,9 +77,7 @@ test.describe('S121 — CMS classic search results flow (search layout)', () => 
   });
 
   test('no-results state renders for a non-matching query', async ({ page }) => {
-    const settled = searchResponse(page);
     await page.goto('/search?q=zzznotarealtermzzz', { waitUntil: 'networkidle' });
-    await settled.catch(() => undefined);
     await expect(page.locator(noResults)).toBeVisible({ timeout: SETTLE_TIMEOUT });
     await shot(page, '05b-search-no-results');
   });

@@ -103,7 +103,9 @@ async function deletePostBySlugIfPresent(
   const body = await response.json();
   const items = body.items ?? [];
   for (const post of items) {
-    if (post.slug === slug) {
+    // Posts are stored under their permalink path (S122), e.g.
+    // `blog/2026/uncategorized/<slug>`, so match the last path segment too.
+    if (post.slug === slug || post.slug.endsWith(`/${slug}`)) {
       await request.delete(`/api/v1/admin/cms/posts/${post.id}`, {
         headers: authHeaders(token),
       });

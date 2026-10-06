@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CmsLayoutRenderer — S152 W1 all widgets of an area render > renders a one-widget-per-area page byte-identically to the pre-W1 output 1`] = `
+"<div data-v-f3e93fe6="" class="cms-layout cms-layout--multi-widget">
+  <!-- Content area: render named content block or fallback to page content -->
+  <!-- Widget area -->
+  <div data-v-f3e93fe6="" class="cms-area cms-area--header">
+    <div data-v-f3e93fe6="" class="container">
+      <!-- Vue component widget: rendered from registry by component name.
+       Wrapped so it (a) carries a cms-widget--<slug> hook and (b) injects the
+       widget's own source_css — same contract as the html/menu widgets — so
+       operators can style a vue widget from the editor's CSS tab. -->
+      <!--v-if-->
+      <!-- HTML widget: decoded from content_json.content (base64) + source_css -->
+      <div data-v-30c31b82="" class="cms-widget cms-widget--html">
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <!--v-if-->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div data-v-30c31b82="">
+          <nav>HEADER</nav>
+        </div>
+        <!-- Body images open in the shared zoom/pan viewer — this is the path a
+         CMS post body actually takes (layout -> html widget), so without it
+         only entity pages would be zoomable. -->
+        <!--v-if-->
+      </div>
+    </div>
+  </div><!-- Declared area with no widget assignment: skip silently -->
+  <!-- Content area: render named content block or fallback to page content -->
+  <main data-v-f3e93fe6="" class="cms-area cms-area--content cms-area--content">
+    <div data-v-f3e93fe6="" class="container">
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div data-v-f3e93fe6="" class="cms-page__body">
+        <p>MAIN BODY</p>
+      </div>
+    </div>
+  </main><!-- Declared area with no widget assignment: skip silently -->
+  <!-- Content area: render named content block or fallback to page content -->
+  <!-- Widget area -->
+  <div data-v-f3e93fe6="" class="cms-area cms-area--sidebar">
+    <div data-v-f3e93fe6="" class="container">
+      <!-- Vue component widget: rendered from registry by component name.
+       Wrapped so it (a) carries a cms-widget--<slug> hook and (b) injects the
+       widget's own source_css — same contract as the html/menu widgets — so
+       operators can style a vue widget from the editor's CSS tab. -->
+      <div data-v-30c31b82="" class="cms-widget cms-widget--vue cms-widget--w-sidebar">
+        <!--v-if-->
+        <div data-v-30c31b82="" class="heading-probe">Sidebar heading</div>
+      </div><!-- HTML widget: decoded from content_json.content (base64) + source_css -->
+      <!--v-if-->
+    </div>
+  </div><!-- Declared area with no widget assignment: skip silently -->
+  <!-- Content area: render named content block or fallback to page content -->
+  <!-- Widget area -->
+  <div data-v-f3e93fe6="" class="cms-area cms-area--footer">
+    <div data-v-f3e93fe6="" class="container">
+      <!-- Vue component widget: rendered from registry by component name.
+       Wrapped so it (a) carries a cms-widget--<slug> hook and (b) injects the
+       widget's own source_css — same contract as the html/menu widgets — so
+       operators can style a vue widget from the editor's CSS tab. -->
+      <!--v-if-->
+      <!-- HTML widget: decoded from content_json.content (base64) + source_css -->
+      <div data-v-30c31b82="" class="cms-widget cms-widget--html">
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <!--v-if-->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div data-v-30c31b82="">
+          <p>FOOTER</p>
+        </div>
+        <!-- Body images open in the shared zoom/pan viewer — this is the path a
+         CMS post body actually takes (layout -> html widget), so without it
+         only entity pages would be zoomable. -->
+        <!--v-if-->
+      </div>
+    </div>
+  </div><!-- Declared area with no widget assignment: skip silently -->
+  <!-- Body images open in the shared zoom/pan viewer. -->
+  <!--v-if-->
+</div>"
+`;

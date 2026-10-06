@@ -12,7 +12,9 @@ import path from 'node:path';
  *
  *   API_BASE=http://localhost:8080 npx playwright test theme-contrast --reporter=list
  *
- * Pages covered: /home1, /home2, /accelerator, /theme-showcase.
+ * Pages covered: /home1, /home2, /accelerator, /theme-showcase (a target
+ * missing from the CMS is skipped). Pages are `cms_post` rows of type `page`
+ * since the legacy cms_page endpoints were retired (S105).
  */
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:8080';
@@ -45,7 +47,7 @@ async function loadStyles(ctx: any, token: string): Promise<StyleRow[]> {
 }
 
 async function loadPageIds(ctx: any, token: string): Promise<Record<string, PageRow>> {
-  const r = await ctx.get(`${API_BASE}/api/v1/admin/cms/pages?per_page=200`, {
+  const r = await ctx.get(`${API_BASE}/api/v1/admin/cms/posts?type=page&per_page=200`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const body = await r.json();
@@ -57,7 +59,7 @@ async function loadPageIds(ctx: any, token: string): Promise<Record<string, Page
 }
 
 async function setPageStyle(ctx: any, token: string, pageId: string, styleId: string | null) {
-  await ctx.put(`${API_BASE}/api/v1/admin/cms/pages/${pageId}`, {
+  await ctx.put(`${API_BASE}/api/v1/admin/cms/posts/${pageId}`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: { style_id: styleId },
   });

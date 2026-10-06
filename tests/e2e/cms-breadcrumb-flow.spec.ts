@@ -25,8 +25,10 @@ const POST_CARD = '[data-testid="post-card"]';
 
 async function dismissConsent(page: Page): Promise<void> {
   // A cookie-consent backdrop intercepts pointer events until a choice is made.
+  // Only a VISIBLE banner needs a choice: the themed page always ships the
+  // banner markup and hides it once consent is stored (S152-11c).
   const accept = page.locator('[data-testid="cookie-accept-all"]');
-  if (await accept.count()) {
+  if (await accept.first().isVisible()) {
     await accept.first().click().catch(() => undefined);
     await page
       .locator('[data-testid="cookie-consent-backdrop"]')
