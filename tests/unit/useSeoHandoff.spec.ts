@@ -113,4 +113,23 @@ describe('injectSeoMeta — idempotent / update-in-place', () => {
     expect(document.head.querySelectorAll('meta[property="og:image"]').length).toBe(0);
     expect(document.title).toBe('Other');
   });
+
+  // S154 P5 — og:url / og:type, consumed by the shop/booking vue-mode product
+  // and category SEO head (the vue counterpart of theme_shop's SeoOverrides).
+  it('injects og:url and og:type when supplied', () => {
+    injectSeoMeta({ ...page, og_url: 'https://x/shop/product/mug', og_type: 'product' });
+
+    const ogUrl = document.head.querySelector(`meta[property="og:url"][${SEO_SSR_MARKER}]`);
+    expect(ogUrl?.getAttribute('content')).toBe('https://x/shop/product/mug');
+    const ogType = document.head.querySelector(`meta[property="og:type"][${SEO_SSR_MARKER}]`);
+    expect(ogType?.getAttribute('content')).toBe('product');
+  });
+
+  it('omits og:url / og:type when not supplied (no stale tag from a prior page)', () => {
+    injectSeoMeta({ ...page, og_url: 'https://x/shop/product/mug', og_type: 'product' });
+    injectSeoMeta(page);
+
+    expect(document.head.querySelectorAll('meta[property="og:url"]').length).toBe(0);
+    expect(document.head.querySelectorAll('meta[property="og:type"]').length).toBe(0);
+  });
 });

@@ -65,6 +65,11 @@ export interface SeoMetaSource {
   og_title?: string | null;
   og_description?: string | null;
   og_image_url?: string | null;
+  // S154 P5 — an adapter route's own og:url (its self canonical) / og:type
+  // (``product`` etc.), consumed by shop/booking's vue-mode product and
+  // category SEO head. Absent on a plain CMS page, same as today.
+  og_url?: string | null;
+  og_type?: string | null;
   canonical_url?: string | null;
   schema_json?: Record<string, unknown> | null;
 }
@@ -152,6 +157,8 @@ export function injectSeoMeta(page: SeoMetaSource): void {
   upsert({ kind: 'property', property: 'og:title', content: ogTitle });
   upsert({ kind: 'property', property: 'og:description', content: page.og_description });
   upsert({ kind: 'property', property: 'og:image', content: page.og_image_url });
+  upsert({ kind: 'property', property: 'og:url', content: page.og_url });
+  upsert({ kind: 'property', property: 'og:type', content: page.og_type });
   upsert({ kind: 'jsonld', json: page.schema_json });
 }
 
